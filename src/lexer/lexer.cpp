@@ -312,6 +312,9 @@ std::vector<Token> Lexer::tokenize() {
       } else if (buffer == "sizeof") {
         tokens.push_back({.tokentype = TokenType::SIZEOF, .value = std::nullopt});
         buffer.clear();
+      } else if (buffer == "goto") {
+        tokens.push_back({.tokentype = TokenType::GOTO, .value = std::nullopt});
+        buffer.clear();
       } else {
         tokens.push_back({.tokentype = TokenType::IDENTIFIER, .value = buffer});
         buffer.clear();
