@@ -6,6 +6,8 @@ project(
     LANGUAGES CXX
 )
 
+include(FetchContent)
+
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -22,16 +24,36 @@ file(GLOB_RECURSE SOURCES
     src/*.cpp
 )
 
-add_executable(forge ${SOURCES})
+list(REMOVE_ITEM SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
+)
 
-target_include_directories(forge PRIVATE
+add_library(forge_core ${SOURCES})
+
+add_executable(forge src/main.cpp)
+
+target_link_libraries(forge PRIVATE forge_core)
+
+target_include_directories(forge_core PUBLIC
     src
 )
 
+FetchContent_Declare(
+    Catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG v3.10.0
+)
+
+FetchContent_MakeAvailable(Catch2)
+
+enable_testing()
+
+add_subdirectory(tests)
+
 if(MSVC)
-    target_compile_options(forge PRIVATE /W4)
+    target_compile_options(forge_core PRIVATE /W4)
 else()
-    target_compile_options(forge PRIVATE
+    target_compile_options(forge_core PRIVATE
         -Wall
         -Wextra
         -Wpedantic

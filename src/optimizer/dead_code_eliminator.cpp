@@ -1,4 +1,4 @@
-#include "./dead_code_eliminator.h"
+#include "dead_code_eliminator.h"
 
 bool DeadCodeEliminator::optimize_block_stmt(BlockStmt *block_stmt_ptr) {
   if (!block_stmt_ptr) {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../ast/program.h"
+#include "ast/program.h"
 
 class DeadCodeEliminator {
 private:

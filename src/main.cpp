@@ -2,11 +2,11 @@
 #include <iostream>
 #include <sstream>
 
-#include "./common/helper.h"
-#include "./lexer/lexer.h"
-#include "./optimizer/optimizer.h"
-#include "./parser/parser.h"
-#include "./semantics/semantics.h"
+#include "common/helper.h"
+#include "lexer/lexer.h"
+#include "optimizer/optimizer.h"
+#include "parser/parser.h"
+#include "semantics/semantics.h"
 
 bool debug = false;
 
