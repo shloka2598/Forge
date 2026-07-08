@@ -2,6 +2,10 @@
 
 #include "./exprs.h"
 
+#include <iostream>
+#include <memory>
+#include <vector>
+
 struct ArrayInitializer {
   bool is_leaf = false;
   std::unique_ptr<Expr> expr;

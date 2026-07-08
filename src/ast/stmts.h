@@ -6,6 +6,11 @@
 #include "./custom_types.h"
 #include "./exprs.h"
 
+#include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
+
 enum class StmtType {
   EMPTY_STMT,
   RETURN_STMT,

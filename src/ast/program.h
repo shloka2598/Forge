@@ -2,6 +2,11 @@
 
 #include "./stmts.h"
 
+#include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
+
 struct Program {
   std::vector<std::unique_ptr<Stmt>> statements;
 

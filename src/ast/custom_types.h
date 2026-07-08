@@ -2,6 +2,9 @@
 
 #include "../types/ParsedTypes.h"
 #include "exprs.h"
+#include <iostream>
+#include <memory>
+#include <string>
 #include <vector>
 
 struct StructField {

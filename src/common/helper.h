@@ -2,6 +2,8 @@
 
 #include "../lexer/lexer.h"
 #include "../parser/parser.h"
+
+#include <iostream>
 #include <vector>
 
 inline void show_tokens(bool debug, const std::vector<Token> &vec) {

@@ -5,6 +5,11 @@
 #include "../types/ParsedTypes.h"
 #include "../types/Types.h"
 
+#include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
+
 enum class ExprType {
   INT_LITERAL,
   DOUBLE_LITERAL,
