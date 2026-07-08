@@ -207,6 +207,8 @@ std::vector<Token> Lexer::tokenize() {
   std::string buffer;
 
   while (peek().has_value()) {
+    size_t token_line = current_line;
+    size_t token_column = current_column;
     if (std::isalpha(static_cast<unsigned char>(peek().value())) || peek().value() == '_') {
       buffer.push_back(consume());
       while (peek().has_value() && (std::isalnum(peek().value()) || peek().value() == '_')) {
@@ -214,109 +216,109 @@ std::vector<Token> Lexer::tokenize() {
       }
 
       if (buffer == "return") {
-        tokens.push_back({.tokentype = TokenType::RETURN, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::RETURN, .value = std::nullopt, .line = token_line, .column = token_column, .length = 6});
         buffer.clear();
       } else if (buffer == "int") {
-        tokens.push_back({.tokentype = TokenType::DATATYPE_INT, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::DATATYPE_INT, .value = std::nullopt, .line = token_line, .column = token_column, .length = 3});
         buffer.clear();
       } else if (buffer == "char") {
-        tokens.push_back({.tokentype = TokenType::DATATYPE_CHAR, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::DATATYPE_CHAR, .value = std::nullopt, .line = token_line, .column = token_column, .length = 4});
         buffer.clear();
       } else if (buffer == "double") {
-        tokens.push_back({.tokentype = TokenType::DATATYPE_DOUBLE, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::DATATYPE_DOUBLE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 6});
         buffer.clear();
       } else if (buffer == "float") {
-        tokens.push_back({.tokentype = TokenType::DATATYPE_FLOAT, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::DATATYPE_FLOAT, .value = std::nullopt, .line = token_line, .column = token_column, .length = 5});
         buffer.clear();
       } else if (buffer == "void") {
-        tokens.push_back({.tokentype = TokenType::DATATYPE_VOID, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::DATATYPE_VOID, .value = std::nullopt, .line = token_line, .column = token_column, .length = 4});
         buffer.clear();
       } else if (buffer == "if") {
-        tokens.push_back({.tokentype = TokenType::IF, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::IF, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
         buffer.clear();
       } else if (buffer == "else") {
-        tokens.push_back({.tokentype = TokenType::ELSE, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::ELSE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 4});
         buffer.clear();
       } else if (buffer == "while") {
-        tokens.push_back({.tokentype = TokenType::WHILE, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::WHILE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 5});
         buffer.clear();
       } else if (buffer == "do") {
-        tokens.push_back({.tokentype = TokenType::DO, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::DO, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
         buffer.clear();
       } else if (buffer == "for") {
-        tokens.push_back({.tokentype = TokenType::FOR, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::FOR, .value = std::nullopt, .line = token_line, .column = token_column, .length = 3});
         buffer.clear();
       } else if (buffer == "switch") {
-        tokens.push_back({.tokentype = TokenType::SWITCH, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::SWITCH, .value = std::nullopt, .line = token_line, .column = token_column, .length = 5});
         buffer.clear();
       } else if (buffer == "case") {
-        tokens.push_back({.tokentype = TokenType::CASE, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::CASE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 4});
         buffer.clear();
       } else if (buffer == "default") {
-        tokens.push_back({.tokentype = TokenType::DEFAULT, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::DEFAULT, .value = std::nullopt, .line = token_line, .column = token_column, .length = 7});
         buffer.clear();
       } else if (buffer == "unsigned") {
-        tokens.push_back({.tokentype = TokenType::UNSIGNED, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::UNSIGNED, .value = std::nullopt, .line = token_line, .column = token_column, .length = 8});
         buffer.clear();
       } else if (buffer == "signed") {
-        tokens.push_back({.tokentype = TokenType::SIGNED, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::SIGNED, .value = std::nullopt, .line = token_line, .column = token_column, .length = 6});
         buffer.clear();
       } else if (buffer == "break") {
-        tokens.push_back({.tokentype = TokenType::BREAK, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::BREAK, .value = std::nullopt, .line = token_line, .column = token_column, .length = 5});
         buffer.clear();
       } else if (buffer == "continue") {
-        tokens.push_back({.tokentype = TokenType::CONTINUE, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::CONTINUE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 8});
         buffer.clear();
       } else if (buffer == "struct") {
-        tokens.push_back({.tokentype = TokenType::STRUCT, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::STRUCT, .value = std::nullopt, .line = token_line, .column = token_column, .length = 6});
         buffer.clear();
       } else if (buffer == "union") {
-        tokens.push_back({.tokentype = TokenType::UNION, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::UNION, .value = std::nullopt, .line = token_line, .column = token_column, .length = 5});
         buffer.clear();
       } else if (buffer == "typedef") {
-        tokens.push_back({.tokentype = TokenType::TYPEDEF, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::TYPEDEF, .value = std::nullopt, .line = token_line, .column = token_column, .length = 7});
         buffer.clear();
       } else if (buffer == "const") {
-        tokens.push_back({.tokentype = TokenType::CONST, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::CONST, .value = std::nullopt, .line = token_line, .column = token_column, .length = 5});
         buffer.clear();
       } else if (buffer == "auto") {
-        tokens.push_back({.tokentype = TokenType::AUTO, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::AUTO, .value = std::nullopt, .line = token_line, .column = token_column, .length = 4});
         buffer.clear();
       } else if (buffer == "static") {
-        tokens.push_back({.tokentype = TokenType::STATIC, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::STATIC, .value = std::nullopt, .line = token_line, .column = token_column, .length = 6});
         buffer.clear();
       } else if (buffer == "extern") {
-        tokens.push_back({.tokentype = TokenType::EXTERN, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::EXTERN, .value = std::nullopt, .line = token_line, .column = token_column, .length = 6});
         buffer.clear();
       } else if (buffer == "register") {
-        tokens.push_back({.tokentype = TokenType::REGISTER, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::REGISTER, .value = std::nullopt, .line = token_line, .column = token_column, .length = 8});
         buffer.clear();
       } else if (buffer == "volatile") {
-        tokens.push_back({.tokentype = TokenType::VOLATILE, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::VOLATILE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 8});
         buffer.clear();
       } else if (buffer == "restrict") {
-        tokens.push_back({.tokentype = TokenType::RESTRICT, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::RESTRICT, .value = std::nullopt, .line = token_line, .column = token_column, .length = 8});
         buffer.clear();
       } else if (buffer == "short") {
-        tokens.push_back({.tokentype = TokenType::SHORT, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::SHORT, .value = std::nullopt, .line = token_line, .column = token_column, .length = 5});
         buffer.clear();
       } else if (buffer == "long") {
-        tokens.push_back({.tokentype = TokenType::LONG, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::LONG, .value = std::nullopt, .line = token_line, .column = token_column, .length = 4});
         buffer.clear();
       } else if (buffer == "enum") {
-        tokens.push_back({.tokentype = TokenType::ENUM, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::ENUM, .value = std::nullopt, .line = token_line, .column = token_column, .length = 4});
         buffer.clear();
       } else if (buffer == "inline") {
-        tokens.push_back({.tokentype = TokenType::INLINE, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::INLINE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 6});
         buffer.clear();
       } else if (buffer == "sizeof") {
-        tokens.push_back({.tokentype = TokenType::SIZEOF, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::SIZEOF, .value = std::nullopt, .line = token_line, .column = token_column, .length = 6});
         buffer.clear();
       } else if (buffer == "goto") {
-        tokens.push_back({.tokentype = TokenType::GOTO, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::GOTO, .value = std::nullopt, .line = token_line, .column = token_column, .length = 4});
         buffer.clear();
       } else {
-        tokens.push_back({.tokentype = TokenType::IDENTIFIER, .value = buffer});
+        tokens.push_back({.tokentype = TokenType::IDENTIFIER, .value = buffer, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       }
     } else if (std::isdigit(static_cast<unsigned char>(peek().value()))) {
@@ -367,12 +369,12 @@ std::vector<Token> Lexer::tokenize() {
       if (is_decimal) {
         if (peek().has_value() && (peek().value() == 'f' || peek().value() == 'F')) {
           consume();
-          tokens.push_back({.tokentype = TokenType::FLOAT_LET, .value = buffer});
+          tokens.push_back({.tokentype = TokenType::FLOAT_LET, .value = buffer, .line = token_line, .column = token_column, .length = (buffer.length() + 1)}); // +1 for the char 'f' / 'F'
         } else {
-          tokens.push_back({.tokentype = TokenType::DOUBLE_LET, .value = buffer});
+          tokens.push_back({.tokentype = TokenType::DOUBLE_LET, .value = buffer, .line = token_line, .column = token_column, .length = buffer.length()});
         }
       } else {
-        tokens.push_back({.tokentype = TokenType::INT_LET, .value = buffer});
+        tokens.push_back({.tokentype = TokenType::INT_LET, .value = buffer, .line = token_line, .column = token_column, .length = buffer.length()});
       }
 
       if (peek().has_value() && (std::isalnum(static_cast<unsigned char>(peek().value())) || peek().value() == '_')) {
@@ -383,13 +385,13 @@ std::vector<Token> Lexer::tokenize() {
 
       buffer.clear();
     } else if (peek().value() == ';') {
-      tokens.push_back({.tokentype = TokenType::SEMI_COLON, .value = std::nullopt});
+      tokens.push_back({.tokentype = TokenType::SEMI_COLON, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       consume();
     } else if (peek().value() == ':') {
-      tokens.push_back({.tokentype = TokenType::COLON, .value = std::nullopt});
+      tokens.push_back({.tokentype = TokenType::COLON, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       consume();
     } else if (peek().value() == ',') {
-      tokens.push_back({.tokentype = TokenType::COMMA, .value = std::nullopt});
+      tokens.push_back({.tokentype = TokenType::COMMA, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       consume();
     } else if (std::isspace(static_cast<unsigned char>(peek().value()))) {
       consume();
@@ -397,34 +399,34 @@ std::vector<Token> Lexer::tokenize() {
       consume(); // first +
       if (peek().has_value() && peek().value() == '+') {
         consume(); // second +
-        tokens.push_back({.tokentype = TokenType::PLUS_PLUS, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::PLUS_PLUS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
       } else if (peek().has_value() && peek().value() == '=') {
         consume(); // =
-        tokens.push_back({.tokentype = TokenType::PLUS_EQUALS, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::PLUS_EQUALS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
       } else {
-        tokens.push_back({.tokentype = TokenType::PLUS, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::PLUS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       }
     } else if (peek().value() == '-') {
       consume(); // first -
       if (peek().has_value() && peek().value() == '-') {
         consume(); // second -
-        tokens.push_back({.tokentype = TokenType::MINUS_MINUS, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::MINUS_MINUS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
       } else if (peek().has_value() && peek().value() == '=') {
         consume(); // =
-        tokens.push_back({.tokentype = TokenType::MINUS_EQUALS, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::MINUS_EQUALS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
       } else if (peek().has_value() && peek().value() == '>') {
         consume(); // -
-        tokens.push_back({.tokentype = TokenType::ARROW, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::ARROW, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
       } else {
-        tokens.push_back({.tokentype = TokenType::MINUS, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::MINUS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       }
     } else if (peek().value() == '*') {
       consume(); // *
       if (peek().has_value() && peek().value() == '=') {
         consume(); // =
-        tokens.push_back({.tokentype = TokenType::MULTIPLY_EQUALS, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::MULTIPLY_EQUALS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
       } else {
-        tokens.push_back({.tokentype = TokenType::MULTIPLY, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::MULTIPLY, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       }
     } else if (peek().value() == '\'') {
       consume(); // opening single quote
@@ -449,7 +451,7 @@ std::vector<Token> Lexer::tokenize() {
       }
 
       consume(); // ending single quote
-      tokens.push_back({.tokentype = TokenType::CHAR_LET, .value = std::string(1, c)});
+      tokens.push_back({.tokentype = TokenType::CHAR_LET, .value = std::string(1, c), .line = token_line, .column = token_column, .length = 3});
     } else if (peek().value() == '/') {
       consume(); // first /
       if (peek().has_value() && peek().value() == '/') {
@@ -475,123 +477,123 @@ std::vector<Token> Lexer::tokenize() {
         }
       } else if (peek().has_value() && peek().value() == '=') {
         consume(); // =
-        tokens.push_back({.tokentype = TokenType::DIVIDE_EQUALS, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::DIVIDE_EQUALS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
       } else {
-        tokens.push_back({.tokentype = TokenType::DIVIDE, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::DIVIDE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       }
     } else if (peek().value() == '%') {
       consume(); // %
       if (peek().has_value() && peek().value() == '=') {
         consume(); // =
-        tokens.push_back({.tokentype = TokenType::MOD_EQUALS, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::MOD_EQUALS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
       } else {
-        tokens.push_back({.tokentype = TokenType::MODULO, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::MODULO, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       }
     } else if (peek().value() == '(') {
-      tokens.push_back({.tokentype = TokenType::PARENTHESIS_OPEN, .value = std::nullopt});
+      tokens.push_back({.tokentype = TokenType::PARENTHESIS_OPEN, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       consume();
     } else if (peek().value() == ')') {
-      tokens.push_back({.tokentype = TokenType::PARENTHESIS_CLOSE, .value = std::nullopt});
+      tokens.push_back({.tokentype = TokenType::PARENTHESIS_CLOSE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       consume();
     } else if (peek().value() == '{') {
-      tokens.push_back({.tokentype = TokenType::BRACES_OPEN, .value = std::nullopt});
+      tokens.push_back({.tokentype = TokenType::BRACES_OPEN, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       consume();
     } else if (peek().value() == '}') {
-      tokens.push_back({.tokentype = TokenType::BRACES_CLOSE, .value = std::nullopt});
+      tokens.push_back({.tokentype = TokenType::BRACES_CLOSE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       consume();
     } else if (peek().value() == '[') {
-      tokens.push_back({.tokentype = TokenType::SQUARE_BRACKETS_OPEN, .value = std::nullopt});
+      tokens.push_back({.tokentype = TokenType::SQUARE_BRACKETS_OPEN, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       consume();
     } else if (peek().value() == ']') {
-      tokens.push_back({.tokentype = TokenType::SQUARE_BRACKETS_CLOSE, .value = std::nullopt});
+      tokens.push_back({.tokentype = TokenType::SQUARE_BRACKETS_CLOSE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       consume();
     } else if (peek().value() == '?') {
-      tokens.push_back({.tokentype = TokenType::QUESTION_MARK, .value = std::nullopt});
+      tokens.push_back({.tokentype = TokenType::QUESTION_MARK, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       consume();
     } else if (peek().value() == '~') {
-      tokens.push_back({.tokentype = TokenType::TILDE, .value = std::nullopt});
+      tokens.push_back({.tokentype = TokenType::TILDE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       consume(); // ~
     } else if (peek().value() == '^') {
       consume(); // ^
       if (peek().has_value() && peek().value() == '=') {
         consume(); // =
-        tokens.push_back({.tokentype = TokenType::CARET_EQUALS, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::CARET_EQUALS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
       } else {
-        tokens.push_back({.tokentype = TokenType::CARET, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::CARET, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       }
     } else if (peek().value() == '.') {
       consume(); // first .
       if (peek().has_value() && peek(1).has_value() && peek().value() == '.' && peek(1).value() == '.') {
         consume();
         consume();
-        tokens.push_back({.tokentype = TokenType::ELLIPSIS, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::ELLIPSIS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 3});
       } else {
-        tokens.push_back({.tokentype = TokenType::DOT, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::DOT, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       }
     } else if (peek().value() == '=') {
       consume(); // first =
 
       if (peek().has_value() && peek().value() == '=') {
         consume(); // second =
-        tokens.push_back({.tokentype = TokenType::DOUBLE_EQUALS, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::DOUBLE_EQUALS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
       } else {
-        tokens.push_back({.tokentype = TokenType::EQUALS, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::EQUALS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       }
     } else if (peek().value() == '&') {
       consume(); // first &
       if (peek().has_value() && peek().value() == '&') {
         consume(); // second &
-        tokens.push_back({.tokentype = TokenType::DOUBLE_AMPERSAND, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::DOUBLE_AMPERSAND, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
       } else if (peek().has_value() && peek().value() == '=') {
         consume(); // =
-        tokens.push_back({.tokentype = TokenType::AMPERSAND_EQUALS, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::AMPERSAND_EQUALS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
       } else {
-        tokens.push_back({.tokentype = TokenType::AMPERSAND, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::AMPERSAND, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       }
     } else if (peek().value() == '|') {
       consume(); // first |
 
       if (peek().has_value() && peek().value() == '|') {
         consume(); // second |
-        tokens.push_back({.tokentype = TokenType::DOUBLE_PIPE, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::DOUBLE_PIPE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
       } else if (peek().has_value() && peek().value() == '=') {
         consume(); // =
-        tokens.push_back({.tokentype = TokenType::PIPE_EQUALS, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::PIPE_EQUALS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
       } else {
-        tokens.push_back({.tokentype = TokenType::PIPE, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::PIPE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       }
     } else if (peek().value() == '>') {
       consume(); // first >
 
       if (peek().has_value() && peek().value() == '=') {
         consume(); // =
-        tokens.push_back({.tokentype = TokenType::GREATER_THAN_EQUAL_THAN, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::GREATER_THAN_EQUAL_THAN, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
       } else if (peek().has_value() && peek().value() == '>') {
         consume(); // second >
         if (peek().has_value() && peek().value() == '=') {
           consume();
-          tokens.push_back({.tokentype = TokenType::RIGHT_SHIFT_EQUALS, .value = std::nullopt});
+          tokens.push_back({.tokentype = TokenType::RIGHT_SHIFT_EQUALS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 3});
         } else {
-          tokens.push_back({.tokentype = TokenType::RIGHT_SHIFT, .value = std::nullopt});
+          tokens.push_back({.tokentype = TokenType::RIGHT_SHIFT, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
         }
       } else {
-        tokens.push_back({.tokentype = TokenType::GREATER_THAN, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::GREATER_THAN, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       }
     } else if (peek().value() == '<') {
       consume(); // first <
       if (peek().has_value() && peek().value() == '=') {
         consume();
-        tokens.push_back({.tokentype = TokenType::SMALLER_THAN_EQUAL_THAN, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::SMALLER_THAN_EQUAL_THAN, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
       } else if (peek().has_value() && peek().value() == '<') {
         consume(); // second <
         if (peek().has_value() && peek().value() == '=') {
           consume();
-          tokens.push_back({.tokentype = TokenType::LEFT_SHIFT_EQUALS, .value = std::nullopt});
+          tokens.push_back({.tokentype = TokenType::LEFT_SHIFT_EQUALS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 3});
         } else {
-          tokens.push_back({.tokentype = TokenType::LEFT_SHIFT, .value = std::nullopt});
+          tokens.push_back({.tokentype = TokenType::LEFT_SHIFT, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
         }
       } else {
-        tokens.push_back({.tokentype = TokenType::SMALLER_THAN, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::SMALLER_THAN, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       }
     } else if (peek().value() == '"') {
       consume(); // opening "
@@ -604,15 +606,15 @@ std::vector<Token> Lexer::tokenize() {
         std::cerr << "Lexer: Unterminated string literal" << std::endl;
         break;
       }
-      consume(); // closing "
-      tokens.push_back({.tokentype = TokenType::STRING_LET, .value = value});
+      consume();                                                                                                                                          // closing "
+      tokens.push_back({.tokentype = TokenType::STRING_LET, .value = value, .line = token_line, .column = token_column, .length = (value.length() + 2)}); // +2 for opening and closing double qoutes (")
     } else if (peek().value() == '!') {
       consume(); // !
       if (peek().has_value() && peek().value() == '=') {
         consume(); // =
-        tokens.push_back({.tokentype = TokenType::NOT_EQUALS, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::NOT_EQUALS, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
       } else {
-        tokens.push_back({.tokentype = TokenType::EXCLAMATION, .value = std::nullopt});
+        tokens.push_back({.tokentype = TokenType::EXCLAMATION, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       }
     } else {
       has_error = true;
@@ -621,6 +623,8 @@ std::vector<Token> Lexer::tokenize() {
   }
 
   _index = 0;
+  current_line = 1;
+  current_column = 1;
   return tokens;
 }
 
@@ -633,5 +637,12 @@ std::optional<char> Lexer::peek(int ahead) const {
 }
 
 char Lexer::consume() {
-  return _str.at(_index++);
+  char c = _str.at(_index++);
+  if (c == '\n') {
+    current_line++;
+    current_column = 1;
+  } else {
+    current_column++;
+  }
+  return c;
 }
