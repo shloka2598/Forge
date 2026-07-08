@@ -2,12 +2,10 @@ name: Forge CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   build-and-test:
@@ -17,11 +15,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Cache FetchContent
+        uses: actions/cache@v4
+        with:
+          path: .cache/fetchcontent
+          key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt', '**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-fetchcontent-
+
       - name: Configure CMake
-        run: cmake -B build
+        run: cmake -B build -DFETCHCONTENT_BASE_DIR=${{ github.workspace }}/.cache/fetchcontent
 
       - name: Build
-        run: cmake --build build
+        run: cmake --build build --parallel
 
       - name: Run Tests
         run: ctest --test-dir build --output-on-failure
