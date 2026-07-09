@@ -31,25 +31,25 @@ void DiagnosticEngine::print(std::ostream &os) const {
   for (const Diagnostic &diagnostic : diagnostics) {
     switch (diagnostic.level) {
     case DiagnosticLevel::Error:
-      std::cerr << "error";
+      os << "error";
       break;
 
     case DiagnosticLevel::Warning:
-      std::cerr << "warning";
+      os << "warning";
       break;
 
     case DiagnosticLevel::Note:
-      std::cerr << "note";
+      os << "note";
       break;
     }
 
-    std::cerr << ": " << diagnostic.message << '\n';
-    std::cerr << " --> line " << diagnostic.line << ", column " << diagnostic.column << '\n';
+    os << ": " << diagnostic.message << '\n';
+    os << " --> line " << diagnostic.line << ", column " << diagnostic.column << '\n';
 
     if (diagnostic.length > 0) {
-      std::cerr << "     length: " << diagnostic.length << '\n';
+      os << "     length: " << diagnostic.length << '\n';
     }
 
-    std::cerr << '\n';
+    os << '\n';
   }
 }
