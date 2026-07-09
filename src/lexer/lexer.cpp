@@ -4,6 +4,8 @@
 #include <iostream>
 #include <string>
 
+#include "diagnostics/DiagnosticEngine.h"
+
 std::ostream &operator<<(std::ostream &os, TokenType type) {
   switch (type) {
   case TokenType::INVALID:
@@ -211,111 +213,111 @@ std::vector<Token> Lexer::tokenize() {
     size_t token_column = current_column;
     if (std::isalpha(static_cast<unsigned char>(peek().value())) || peek().value() == '_') {
       buffer.push_back(consume());
-      while (peek().has_value() && (std::isalnum(peek().value()) || peek().value() == '_')) {
+      while (peek().has_value() && (std::isalnum(static_cast<unsigned char>(peek().value())) || peek().value() == '_')) {
         buffer.push_back(consume());
       }
 
       if (buffer == "return") {
-        tokens.push_back({.tokentype = TokenType::RETURN, .value = std::nullopt, .line = token_line, .column = token_column, .length = 6});
+        tokens.push_back({.tokentype = TokenType::RETURN, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "int") {
-        tokens.push_back({.tokentype = TokenType::DATATYPE_INT, .value = std::nullopt, .line = token_line, .column = token_column, .length = 3});
+        tokens.push_back({.tokentype = TokenType::DATATYPE_INT, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "char") {
-        tokens.push_back({.tokentype = TokenType::DATATYPE_CHAR, .value = std::nullopt, .line = token_line, .column = token_column, .length = 4});
+        tokens.push_back({.tokentype = TokenType::DATATYPE_CHAR, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "double") {
-        tokens.push_back({.tokentype = TokenType::DATATYPE_DOUBLE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 6});
+        tokens.push_back({.tokentype = TokenType::DATATYPE_DOUBLE, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "float") {
-        tokens.push_back({.tokentype = TokenType::DATATYPE_FLOAT, .value = std::nullopt, .line = token_line, .column = token_column, .length = 5});
+        tokens.push_back({.tokentype = TokenType::DATATYPE_FLOAT, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "void") {
-        tokens.push_back({.tokentype = TokenType::DATATYPE_VOID, .value = std::nullopt, .line = token_line, .column = token_column, .length = 4});
+        tokens.push_back({.tokentype = TokenType::DATATYPE_VOID, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "if") {
-        tokens.push_back({.tokentype = TokenType::IF, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
+        tokens.push_back({.tokentype = TokenType::IF, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "else") {
-        tokens.push_back({.tokentype = TokenType::ELSE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 4});
+        tokens.push_back({.tokentype = TokenType::ELSE, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "while") {
-        tokens.push_back({.tokentype = TokenType::WHILE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 5});
+        tokens.push_back({.tokentype = TokenType::WHILE, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "do") {
-        tokens.push_back({.tokentype = TokenType::DO, .value = std::nullopt, .line = token_line, .column = token_column, .length = 2});
+        tokens.push_back({.tokentype = TokenType::DO, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "for") {
-        tokens.push_back({.tokentype = TokenType::FOR, .value = std::nullopt, .line = token_line, .column = token_column, .length = 3});
+        tokens.push_back({.tokentype = TokenType::FOR, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "switch") {
-        tokens.push_back({.tokentype = TokenType::SWITCH, .value = std::nullopt, .line = token_line, .column = token_column, .length = 5});
+        tokens.push_back({.tokentype = TokenType::SWITCH, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "case") {
-        tokens.push_back({.tokentype = TokenType::CASE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 4});
+        tokens.push_back({.tokentype = TokenType::CASE, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "default") {
-        tokens.push_back({.tokentype = TokenType::DEFAULT, .value = std::nullopt, .line = token_line, .column = token_column, .length = 7});
+        tokens.push_back({.tokentype = TokenType::DEFAULT, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "unsigned") {
-        tokens.push_back({.tokentype = TokenType::UNSIGNED, .value = std::nullopt, .line = token_line, .column = token_column, .length = 8});
+        tokens.push_back({.tokentype = TokenType::UNSIGNED, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "signed") {
-        tokens.push_back({.tokentype = TokenType::SIGNED, .value = std::nullopt, .line = token_line, .column = token_column, .length = 6});
+        tokens.push_back({.tokentype = TokenType::SIGNED, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "break") {
-        tokens.push_back({.tokentype = TokenType::BREAK, .value = std::nullopt, .line = token_line, .column = token_column, .length = 5});
+        tokens.push_back({.tokentype = TokenType::BREAK, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "continue") {
-        tokens.push_back({.tokentype = TokenType::CONTINUE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 8});
+        tokens.push_back({.tokentype = TokenType::CONTINUE, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "struct") {
-        tokens.push_back({.tokentype = TokenType::STRUCT, .value = std::nullopt, .line = token_line, .column = token_column, .length = 6});
+        tokens.push_back({.tokentype = TokenType::STRUCT, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "union") {
-        tokens.push_back({.tokentype = TokenType::UNION, .value = std::nullopt, .line = token_line, .column = token_column, .length = 5});
+        tokens.push_back({.tokentype = TokenType::UNION, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "typedef") {
-        tokens.push_back({.tokentype = TokenType::TYPEDEF, .value = std::nullopt, .line = token_line, .column = token_column, .length = 7});
+        tokens.push_back({.tokentype = TokenType::TYPEDEF, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "const") {
-        tokens.push_back({.tokentype = TokenType::CONST, .value = std::nullopt, .line = token_line, .column = token_column, .length = 5});
+        tokens.push_back({.tokentype = TokenType::CONST, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "auto") {
-        tokens.push_back({.tokentype = TokenType::AUTO, .value = std::nullopt, .line = token_line, .column = token_column, .length = 4});
+        tokens.push_back({.tokentype = TokenType::AUTO, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "static") {
-        tokens.push_back({.tokentype = TokenType::STATIC, .value = std::nullopt, .line = token_line, .column = token_column, .length = 6});
+        tokens.push_back({.tokentype = TokenType::STATIC, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "extern") {
-        tokens.push_back({.tokentype = TokenType::EXTERN, .value = std::nullopt, .line = token_line, .column = token_column, .length = 6});
+        tokens.push_back({.tokentype = TokenType::EXTERN, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "register") {
-        tokens.push_back({.tokentype = TokenType::REGISTER, .value = std::nullopt, .line = token_line, .column = token_column, .length = 8});
+        tokens.push_back({.tokentype = TokenType::REGISTER, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "volatile") {
-        tokens.push_back({.tokentype = TokenType::VOLATILE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 8});
+        tokens.push_back({.tokentype = TokenType::VOLATILE, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "restrict") {
-        tokens.push_back({.tokentype = TokenType::RESTRICT, .value = std::nullopt, .line = token_line, .column = token_column, .length = 8});
+        tokens.push_back({.tokentype = TokenType::RESTRICT, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "short") {
-        tokens.push_back({.tokentype = TokenType::SHORT, .value = std::nullopt, .line = token_line, .column = token_column, .length = 5});
+        tokens.push_back({.tokentype = TokenType::SHORT, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "long") {
-        tokens.push_back({.tokentype = TokenType::LONG, .value = std::nullopt, .line = token_line, .column = token_column, .length = 4});
+        tokens.push_back({.tokentype = TokenType::LONG, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "enum") {
-        tokens.push_back({.tokentype = TokenType::ENUM, .value = std::nullopt, .line = token_line, .column = token_column, .length = 4});
+        tokens.push_back({.tokentype = TokenType::ENUM, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "inline") {
-        tokens.push_back({.tokentype = TokenType::INLINE, .value = std::nullopt, .line = token_line, .column = token_column, .length = 6});
+        tokens.push_back({.tokentype = TokenType::INLINE, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "sizeof") {
-        tokens.push_back({.tokentype = TokenType::SIZEOF, .value = std::nullopt, .line = token_line, .column = token_column, .length = 6});
+        tokens.push_back({.tokentype = TokenType::SIZEOF, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else if (buffer == "goto") {
-        tokens.push_back({.tokentype = TokenType::GOTO, .value = std::nullopt, .line = token_line, .column = token_column, .length = 4});
+        tokens.push_back({.tokentype = TokenType::GOTO, .value = std::nullopt, .line = token_line, .column = token_column, .length = buffer.length()});
         buffer.clear();
       } else {
         tokens.push_back({.tokentype = TokenType::IDENTIFIER, .value = buffer, .line = token_line, .column = token_column, .length = buffer.length()});
@@ -332,9 +334,12 @@ std::vector<Token> Lexer::tokenize() {
         buffer.push_back(consume()); // x / X
 
         if (!peek().has_value() || !std::isxdigit(static_cast<unsigned char>(peek().value()))) {
-          has_error = true;
-          std::cerr << "Lexer: Invalid hexadecimal literal (" << peek().value() << ")\n";
-          break;
+          diagnostics.error("Invalid numeric literal", token_line, token_column, buffer.length());
+          while (peek() && (std::isalnum(static_cast<unsigned char>(peek().value())) || peek().value() == '_')) {
+            consume();
+          }
+          buffer.clear();
+          continue;
         }
 
         while (peek().has_value() && std::isxdigit(static_cast<unsigned char>(peek().value()))) {
@@ -347,9 +352,13 @@ std::vector<Token> Lexer::tokenize() {
           buffer.push_back(consume());
         }
         if (peek().has_value() && (peek().value() == '8' || peek().value() == '9')) {
-          has_error = true;
-          std::cerr << "Lexer: Invalid octal literal (" << peek().value() << ")\n";
-          break;
+          diagnostics.error("Invalid octal literal", token_line, token_column, buffer.length());
+          while (peek() && std::isdigit(static_cast<unsigned char>(peek().value()))) {
+            consume();
+          }
+
+          buffer.clear();
+          continue;
         }
       }
 
@@ -366,6 +375,16 @@ std::vector<Token> Lexer::tokenize() {
         }
       }
 
+      if (peek().has_value() && (std::isalnum(static_cast<unsigned char>(peek().value())) || peek().value() == '_')) {
+        diagnostics.error("Invalid numeric literal", token_line, token_column, buffer.length());
+        while (peek() && (std::isalnum(static_cast<unsigned char>(peek().value())) || peek().value() == '_')) {
+          consume();
+        }
+
+        buffer.clear();
+        continue;
+      }
+
       if (is_decimal) {
         if (peek().has_value() && (peek().value() == 'f' || peek().value() == 'F')) {
           consume();
@@ -375,12 +394,6 @@ std::vector<Token> Lexer::tokenize() {
         }
       } else {
         tokens.push_back({.tokentype = TokenType::INT_LET, .value = buffer, .line = token_line, .column = token_column, .length = buffer.length()});
-      }
-
-      if (peek().has_value() && (std::isalnum(static_cast<unsigned char>(peek().value())) || peek().value() == '_')) {
-        has_error = true;
-        std::cerr << "Lexer: Invalid numeric literal\n";
-        break;
       }
 
       buffer.clear();
@@ -431,22 +444,19 @@ std::vector<Token> Lexer::tokenize() {
     } else if (peek().value() == '\'') {
       consume(); // opening single quote
       if (!peek().has_value()) {
-        has_error = true;
-        std::cerr << "Lexer: Expected a character literal" << std::endl;
+        diagnostics.error("Expected character literal", token_line, token_column, 1);
         break;
       }
 
       char c = consume();
 
       if (c == '\'') {
-        has_error = true;
-        std::cerr << "Lexer: Empty character literal not supported" << std::endl;
+        diagnostics.error("Empty character literal not supported", token_line, token_column, 2);
         break;
       }
 
       if (!peek().has_value() || peek().value() != '\'') {
-        has_error = true;
-        std::cerr << "Lexer: Expected a single-quote(')" << std::endl;
+        diagnostics.error("Expected a single-quote(')", token_line, token_column, 2);
         break;
       }
 
@@ -472,8 +482,8 @@ std::vector<Token> Lexer::tokenize() {
           consume();
         }
         if (!found_end) {
-          has_error = true;
-          std::cerr << "Lexer: Unterminated multi-line comment" << std::endl;
+          diagnostics.error("Unterminated multi-line comment", token_line, token_column, 2);
+          break;
         }
       } else if (peek().has_value() && peek().value() == '=') {
         consume(); // =
@@ -602,12 +612,11 @@ std::vector<Token> Lexer::tokenize() {
         value.push_back(consume());
       }
       if (!peek().has_value()) {
-        has_error = true;
-        std::cerr << "Lexer: Unterminated string literal" << std::endl;
+        diagnostics.error("Unterminated string literal", token_line, token_column, value.length() + 1);
         break;
       }
       consume();                                                                                                                                          // closing "
-      tokens.push_back({.tokentype = TokenType::STRING_LET, .value = value, .line = token_line, .column = token_column, .length = (value.length() + 2)}); // +2 for opening and closing double qoutes (")
+      tokens.push_back({.tokentype = TokenType::STRING_LET, .value = value, .line = token_line, .column = token_column, .length = (value.length() + 2)}); // +2 for opening and closing double quotes (")
     } else if (peek().value() == '!') {
       consume(); // !
       if (peek().has_value() && peek().value() == '=') {
@@ -617,8 +626,8 @@ std::vector<Token> Lexer::tokenize() {
         tokens.push_back({.tokentype = TokenType::EXCLAMATION, .value = std::nullopt, .line = token_line, .column = token_column, .length = 1});
       }
     } else {
-      has_error = true;
-      std::cerr << "Lexer: Invalid char '" << peek().value() << "'\n";
+      diagnostics.error("Invalid character", token_line, token_column, 1);
+      consume();
     }
   }
 

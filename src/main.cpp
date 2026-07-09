@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include "common/helper.h"
+#include "diagnostics/DiagnosticEngine.h"
 #include "lexer/lexer.h"
 #include "optimizer/optimizer.h"
 #include "parser/parser.h"
@@ -25,17 +26,14 @@ int main(int argc, char *argv[]) {
 
   std::string contents = file_contents.str();
 
-  Lexer lexer{contents};
+  DiagnosticEngine diagnostic;
+
+  Lexer lexer{contents, diagnostic};
   std::vector<Token> tokens = lexer.tokenize();
 
   show_tokens(debug, tokens);
 
   Program program;
-
-  if (lexer.had_error()) {
-    std::cerr << "Compiler halted due to lexer failure" << std::endl;
-    return -1;
-  }
 
   Parser parser{tokens, program};
   parser.parse();

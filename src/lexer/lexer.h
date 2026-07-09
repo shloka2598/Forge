@@ -9,6 +9,8 @@
 
 std::ostream &operator<<(std::ostream &os, TokenType type);
 
+class DiagnosticEngine;
+
 struct Token {
   TokenType tokentype;
   std::optional<std::string> value;
@@ -20,22 +22,17 @@ struct Token {
 class Lexer {
 private:
   const std::string _str;
+  DiagnosticEngine &diagnostics;
   size_t _index = 0;
   size_t current_line = 1;
   size_t current_column = 1;
-
-  bool has_error = false;
 
   [[nodiscard]] std::optional<char> peek(int ahead = 0) const; // done
   char consume();                                              // done
 
 public:
-  Lexer(std::string src) : _str{std::move(src)} {
+  Lexer(std::string src, DiagnosticEngine &engine) : _str{std::move(src)}, diagnostics{engine} {
   }
 
   std::vector<Token> tokenize();
-
-  bool had_error() const {
-    return has_error;
-  }
 };
