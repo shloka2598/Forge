@@ -327,6 +327,7 @@ std::vector<Token> Lexer::tokenize() {
       buffer.clear();
 
       bool is_decimal = false;
+      bool numeric_error = false;
 
       buffer.push_back(consume());
 
@@ -345,24 +346,25 @@ std::vector<Token> Lexer::tokenize() {
         while (peek().has_value() && std::isxdigit(static_cast<unsigned char>(peek().value()))) {
           buffer.push_back(consume());
         }
-      }
-
-      else if (buffer == "0" && peek().has_value() && peek().value() >= '0' && peek().value() <= '7') {
-        while (peek().has_value() && peek().value() >= '0' && peek().value() <= '7') {
+      } else if (buffer == "0" && peek().has_value() && std::isdigit(static_cast<unsigned char>(peek().value()))) {
+        while (peek().has_value() && std::isdigit(static_cast<unsigned char>(peek().value()))) {
           buffer.push_back(consume());
         }
-        if (peek().has_value() && (peek().value() == '8' || peek().value() == '9')) {
-          diagnostics.error("Invalid octal literal", token_line, token_column, buffer.length());
-          while (peek() && std::isdigit(static_cast<unsigned char>(peek().value()))) {
-            consume();
-          }
 
-          buffer.clear();
+        for (char c : buffer) {
+          if (c == '8' || c == '9') {
+            diagnostics.error("Invalid octal literal", token_line, token_column, buffer.length());
+            buffer.clear();
+            numeric_error = true;
+            break;
+          }
+        }
+
+        if (numeric_error) {
           continue;
         }
-      }
 
-      else {
+      } else {
         while (peek().has_value() && std::isdigit(static_cast<unsigned char>(peek().value()))) {
           buffer.push_back(consume());
         }
@@ -375,15 +377,15 @@ std::vector<Token> Lexer::tokenize() {
         }
       }
 
-      if (peek().has_value() && (std::isalnum(static_cast<unsigned char>(peek().value())) || peek().value() == '_')) {
-        diagnostics.error("Invalid numeric literal", token_line, token_column, buffer.length());
-        while (peek() && (std::isalnum(static_cast<unsigned char>(peek().value())) || peek().value() == '_')) {
-          consume();
-        }
+      // if (peek().has_value() && (std::isalnum(static_cast<unsigned char>(peek().value())) || peek().value() == '_')) {
+      //   diagnostics.error("Invalid numeric literal", token_line, token_column, buffer.length());
+      //   while (peek() && (std::isalnum(static_cast<unsigned char>(peek().value())) || peek().value() == '_')) {
+      //     consume();
+      //   }
 
-        buffer.clear();
-        continue;
-      }
+      //   buffer.clear();
+      //   continue;
+      // }
 
       if (is_decimal) {
         if (peek().has_value() && (peek().value() == 'f' || peek().value() == 'F')) {
@@ -393,6 +395,14 @@ std::vector<Token> Lexer::tokenize() {
           tokens.push_back({.tokentype = TokenType::DOUBLE_LET, .value = buffer, .line = token_line, .column = token_column, .length = buffer.length()});
         }
       } else {
+        if (peek().has_value() && (std::isalnum(static_cast<unsigned char>(peek().value())) || peek().value() == '_')) {
+          diagnostics.error("Invalid numeric literal", token_line, token_column, buffer.length());
+          while (peek().has_value() && (std::isalnum(static_cast<unsigned char>(peek().value())) || peek().value() == '_')) {
+            consume();
+          }
+          buffer.clear();
+          continue;
+        }
         tokens.push_back({.tokentype = TokenType::INT_LET, .value = buffer, .line = token_line, .column = token_column, .length = buffer.length()});
       }
 
