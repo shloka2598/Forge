@@ -10,7 +10,8 @@ TEST_CASE("Lexer recognizes punctuation") {
       std::pair<std::string_view, TokenType>{"...", TokenType::ELLIPSIS});
 
   DYNAMIC_SECTION("Punctuation = '" << pun << "'") {
-    auto tokens = tokenize(pun);
+    auto result = tokenize(pun);
+    auto &tokens = result.tokens;
 
     REQUIRE(tokens.size() == 1);
     REQUIRE(tokens[0].tokentype == expected);
@@ -28,7 +29,8 @@ TEST_CASE("Lexer recognizes delimiters") {
       std::pair<std::string_view, TokenType>{"}", TokenType::BRACES_CLOSE});
 
   DYNAMIC_SECTION("Delimiter = '" << del << "'") {
-    auto tokens = tokenize(del);
+    auto result = tokenize(del);
+    auto &tokens = result.tokens;
 
     REQUIRE(tokens.size() == 1);
     REQUIRE(tokens[0].tokentype == expected);

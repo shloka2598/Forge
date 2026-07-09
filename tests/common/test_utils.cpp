@@ -2,8 +2,12 @@
 
 #include "test_utils.h"
 
-std::vector<Token> tokenize(std::string_view source) {
-  Lexer lexer{std::string{source}};
+LexerResult tokenize(std::string_view source) {
+  LexerResult result;
 
-  return lexer.tokenize();
+  Lexer lexer{std::string{source}, result.diagnostics};
+
+  result.tokens = lexer.tokenize();
+
+  return result;
 }

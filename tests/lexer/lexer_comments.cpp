@@ -4,7 +4,8 @@
 
 TEST_CASE("Lexer ignores single-line comments") {
   std::string_view source{"// a comment\n return"};
-  auto tokens = tokenize(source);
+  auto result = tokenize(source);
+  auto &tokens = result.tokens;
 
   REQUIRE(tokens.size() == 1);
   REQUIRE(tokens[0].tokentype == TokenType::RETURN);
@@ -13,7 +14,8 @@ TEST_CASE("Lexer ignores single-line comments") {
 
 TEST_CASE("Lexer ignores multi-line comments") {
   std::string_view source{"/* a comment*/ return"};
-  auto tokens = tokenize(source);
+  auto result = tokenize(source);
+  auto &tokens = result.tokens;
 
   REQUIRE(tokens.size() == 1);
   REQUIRE(tokens[0].tokentype == TokenType::RETURN);
@@ -22,7 +24,8 @@ TEST_CASE("Lexer ignores multi-line comments") {
 
 TEST_CASE("Lexer ignores comments between tokens") {
   std::string_view source{"return /* a comment*/ 10;"};
-  auto tokens = tokenize(source);
+  auto result = tokenize(source);
+  auto &tokens = result.tokens;
 
   REQUIRE(tokens.size() == 3);
 
@@ -39,7 +42,8 @@ TEST_CASE("Lexer ignores comments between tokens") {
 
 TEST_CASE("Lexer ignores multiple comments") {
   std::string_view source{"// single line comment \n /* multi line comment */ 1008;"};
-  auto tokens = tokenize(source);
+  auto result = tokenize(source);
+  auto &tokens = result.tokens;
 
   REQUIRE(tokens.size() == 2);
 
@@ -53,7 +57,8 @@ TEST_CASE("Lexer ignores multiple comments") {
 
 TEST_CASE("Lexer ignores empty comments") {
   std::string_view source{"//  \n /* */ return"};
-  auto tokens = tokenize(source);
+  auto result = tokenize(source);
+  auto &tokens = result.tokens;
 
   REQUIRE(tokens.size() == 1);
 
@@ -63,14 +68,16 @@ TEST_CASE("Lexer ignores empty comments") {
 
 TEST_CASE("Lexer ignores comment-only input") {
   std::string_view source{"//  \n /* */"};
-  auto tokens = tokenize(source);
+  auto result = tokenize(source);
+  auto &tokens = result.tokens;
 
   REQUIRE(tokens.empty());
 }
 
 TEST_CASE("Lexer ignores single-line comments after valid input") {
   std::string_view source{"return 10; // sinlge line comment"};
-  auto tokens = tokenize(source);
+  auto result = tokenize(source);
+  auto &tokens = result.tokens;
 
   REQUIRE(tokens.size() == 3);
 
@@ -87,7 +94,8 @@ TEST_CASE("Lexer ignores single-line comments after valid input") {
 
 TEST_CASE("Lexer ignores multi-line comments after valid input") {
   std::string_view source{"return 10; /* multi-line comment */"};
-  auto tokens = tokenize(source);
+  auto result = tokenize(source);
+  auto &tokens = result.tokens;
 
   REQUIRE(tokens.size() == 3);
 
@@ -104,7 +112,8 @@ TEST_CASE("Lexer ignores multi-line comments after valid input") {
 
 TEST_CASE("Lexer recognizes divide operator after comments") {
   std::string_view source{"/* comment *//2"};
-  auto tokens = tokenize(source);
+  auto result = tokenize(source);
+  auto &tokens = result.tokens;
 
   REQUIRE(tokens.size() == 2);
 
@@ -118,7 +127,8 @@ TEST_CASE("Lexer recognizes divide operator after comments") {
 
 TEST_CASE("Lexer ignores adjacent multi-line comments") {
   std::string_view source{"/**//*comment*/return"};
-  auto tokens = tokenize(source);
+  auto result = tokenize(source);
+  auto &tokens = result.tokens;
 
   REQUIRE(tokens.size() == 1);
   REQUIRE(tokens[0].tokentype == TokenType::RETURN);
@@ -127,7 +137,8 @@ TEST_CASE("Lexer ignores adjacent multi-line comments") {
 
 TEST_CASE("Lexer resumes after single-line comments followed by blank lines") {
   std::string_view source{"// comment\n\n\nreturn"};
-  auto tokens = tokenize(source);
+  auto result = tokenize(source);
+  auto &tokens = result.tokens;
 
   REQUIRE(tokens.size() == 1);
   REQUIRE(tokens[0].tokentype == TokenType::RETURN);

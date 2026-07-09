@@ -14,7 +14,8 @@ TEST_CASE("Lexer recognizes arithmetic operators") {
       std::pair<std::string_view, TokenType>{"--", TokenType::MINUS_MINUS});
 
   DYNAMIC_SECTION("Arithmetic Operator = '" << op << "'") {
-    auto tokens = tokenize(op);
+    auto result = tokenize(op);
+    auto &tokens = result.tokens;
 
     REQUIRE(tokens.size() == 1);
     REQUIRE(tokens[0].tokentype == expected);
@@ -37,7 +38,8 @@ TEST_CASE("Lexer recognizes assignment operators") {
       std::pair<std::string_view, TokenType>{"^=", TokenType::CARET_EQUALS});
 
   DYNAMIC_SECTION("Assignment Operator = '" << op << "'") {
-    auto tokens = tokenize(op);
+    auto result = tokenize(op);
+    auto &tokens = result.tokens;
 
     REQUIRE(tokens.size() == 1);
     REQUIRE(tokens[0].tokentype == expected);
@@ -55,7 +57,8 @@ TEST_CASE("Lexer recognizes comparison operators") {
       std::pair<std::string_view, TokenType>{"!=", TokenType::NOT_EQUALS});
 
   DYNAMIC_SECTION("Comparison Operator = '" << op << "'") {
-    auto tokens = tokenize(op);
+    auto result = tokenize(op);
+    auto &tokens = result.tokens;
 
     REQUIRE(tokens.size() == 1);
     REQUIRE(tokens[0].tokentype == expected);
@@ -70,7 +73,8 @@ TEST_CASE("Lexer recognizes logical operators") {
       std::pair<std::string_view, TokenType>{"||", TokenType::DOUBLE_PIPE});
 
   DYNAMIC_SECTION("Logical Operator = '" << op << "'") {
-    auto tokens = tokenize(op);
+    auto result = tokenize(op);
+    auto &tokens = result.tokens;
 
     REQUIRE(tokens.size() == 1);
     REQUIRE(tokens[0].tokentype == expected);
@@ -88,7 +92,8 @@ TEST_CASE("Lexer recognizes bitwise operators") {
       std::pair<std::string_view, TokenType>{">>", TokenType::RIGHT_SHIFT});
 
   DYNAMIC_SECTION("Bitwise Operator = '" << op << "'") {
-    auto tokens = tokenize(op);
+    auto result = tokenize(op);
+    auto &tokens = result.tokens;
 
     REQUIRE(tokens.size() == 1);
     REQUIRE(tokens[0].tokentype == expected);
@@ -104,7 +109,8 @@ TEST_CASE("Lexer recognizes miscellaneous operators") {
       std::pair<std::string_view, TokenType>{"->", TokenType::ARROW});
 
   DYNAMIC_SECTION("Miscellaneous Operator = '" << op << "'") {
-    auto tokens = tokenize(op);
+    auto result = tokenize(op);
+    auto &tokens = result.tokens;
 
     REQUIRE(tokens.size() == 1);
     REQUIRE(tokens[0].tokentype == expected);

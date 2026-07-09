@@ -12,7 +12,8 @@ TEST_CASE("Lexer ignores leading whitespace") {
       std::string_view{"\r\nreturn"});
 
   DYNAMIC_SECTION("Leading whitespace in: " << source) {
-    auto tokens = tokenize(source);
+    auto result = tokenize(source);
+    auto &tokens = result.tokens;
 
     REQUIRE(tokens.size() == 1);
     REQUIRE(tokens[0].tokentype == TokenType::RETURN);
@@ -29,7 +30,8 @@ TEST_CASE("Lexer ignores trailing whitespace") {
       std::string_view{"return\r\n"});
 
   DYNAMIC_SECTION("Trailing whitespace in: " << source) {
-    auto tokens = tokenize(source);
+    auto result = tokenize(source);
+    auto &tokens = result.tokens;
 
     REQUIRE(tokens.size() == 1);
     REQUIRE(tokens[0].tokentype == TokenType::RETURN);
@@ -40,7 +42,8 @@ TEST_CASE("Lexer ignores trailing whitespace") {
 TEST_CASE("Lexer separates tokens with whitespace") {
   std::string_view source{"return 10 ;"};
 
-  auto tokens = tokenize(source);
+  auto result = tokenize(source);
+  auto &tokens = result.tokens;
 
   REQUIRE(tokens.size() == 3);
 
@@ -58,7 +61,8 @@ TEST_CASE("Lexer separates tokens with whitespace") {
 TEST_CASE("Lexer ignores consecutive whitespace") {
   std::string_view source{"return      \t\t\n\n10        ;"};
 
-  auto tokens = tokenize(source);
+  auto result = tokenize(source);
+  auto &tokens = result.tokens;
 
   REQUIRE(tokens.size() == 3);
 
@@ -83,7 +87,8 @@ TEST_CASE("Lexer ignores whitespace-only input") {
       std::string_view{"   \t\n\r\n"});
 
   DYNAMIC_SECTION("Whitespace only: " << source) {
-    auto tokens = tokenize(source);
+    auto result = tokenize(source);
+    auto &tokens = result.tokens;
 
     REQUIRE(tokens.empty());
   }
@@ -92,7 +97,8 @@ TEST_CASE("Lexer ignores whitespace-only input") {
 TEST_CASE("Lexer handles mixed whitespace") {
   std::string_view source{"\t return \n 10 \r\n ;"};
 
-  auto tokens = tokenize(source);
+  auto result = tokenize(source);
+  auto &tokens = result.tokens;
 
   REQUIRE(tokens.size() == 3);
 

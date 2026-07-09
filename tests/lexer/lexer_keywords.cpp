@@ -41,7 +41,8 @@ TEST_CASE("Lexer recognizes keywords") {
       std::pair{"unsigned", TokenType::UNSIGNED});
 
   DYNAMIC_SECTION("Keyword = " << keyword) {
-    auto tokens = tokenize(keyword);
+    auto result = tokenize(keyword);
+    auto &tokens = result.tokens;
 
     REQUIRE(tokens.size() == 1);
     REQUIRE(tokens[0].tokentype == expected);
