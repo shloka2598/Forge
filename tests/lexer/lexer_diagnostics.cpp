@@ -4,13 +4,13 @@
 #include "common/test_utils.h"
 
 TEST_CASE("Lexer reports invalid numeric literals") {
-  auto [num, error_msg] = GENERATE(
-      std::pair<std::string_view, std::string_view>{"123abc", "Invalid numeric literal"},
-      std::pair<std::string_view, std::string_view>{"123_", "Invalid numeric literal"},
-      std::pair<std::string_view, std::string_view>{"0x", "Invalid numeric literal"},
-      std::pair<std::string_view, std::string_view>{"0X", "Invalid numeric literal"},
-      std::pair<std::string_view, std::string_view>{"089", "Invalid octal literal"},
-      std::pair<std::string_view, std::string_view>{"078", "Invalid octal literal"});
+  auto [num, error_msg, length] = GENERATE(
+      std::tuple<std::string_view, std::string_view, size_t>{"123abc", "Invalid numeric literal", 3},
+      std::tuple<std::string_view, std::string_view, size_t>{"123_", "Invalid numeric literal", 3},
+      std::tuple<std::string_view, std::string_view, size_t>{"0x", "Invalid numeric literal", 2},
+      std::tuple<std::string_view, std::string_view, size_t>{"0X", "Invalid numeric literal", 2},
+      std::tuple<std::string_view, std::string_view, size_t>{"089", "Invalid octal literal", 3},
+      std::tuple<std::string_view, std::string_view, size_t>{"078", "Invalid octal literal", 3});
 
   DYNAMIC_SECTION("Number = " << num) {
     auto result = tokenize(num);
@@ -24,7 +24,7 @@ TEST_CASE("Lexer reports invalid numeric literals") {
     REQUIRE(diag.message == error_msg);
     REQUIRE(diag.line == 1);
     REQUIRE(diag.column == 1);
-    // REQUIRE(diag.length == 3);
+    REQUIRE(diag.length == length);
 
     auto &tokens = result.tokens;
     REQUIRE(tokens.empty());
