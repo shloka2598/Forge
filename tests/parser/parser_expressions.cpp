@@ -1212,7 +1212,7 @@ TEST_CASE("Parser parses cast of literal") {
   REQUIRE(lit->value == 10);
 }
 
-TEST_CASE("Parser parses cast of binary expression") {
+TEST_CASE("Parser parses cast of binary expression(double)") {
   auto result = parse("int main() { return (double)(a + b); }");
 
   auto *cast = dynamic_cast<CastExpr *>(get_return_stmt(result)->expr_ptr.get());
@@ -1309,3 +1309,649 @@ TEST_CASE("Parser parses array access after cast") {
    REQUIRE(cast->target_type.pointer_depth == 1);
  }
 */
+
+TEST_CASE("Parser parses simple assignment") {
+  auto result = parse("int main() { return a = b; }");
+
+  auto *assign = dynamic_cast<AssignmentExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(assign != nullptr);
+
+  auto *lhs = dynamic_cast<IdentifierExpr *>(assign->lhs.get());
+  auto *rhs = dynamic_cast<IdentifierExpr *>(assign->rhs.get());
+
+  REQUIRE(lhs != nullptr);
+  REQUIRE(rhs != nullptr);
+
+  REQUIRE(lhs->identifier_name == "a");
+  REQUIRE(rhs->identifier_name == "b");
+}
+
+TEST_CASE("Parser parses assignment with literal rhs") {
+  auto result = parse("int main() { return a = 10; }");
+
+  auto *assign = dynamic_cast<AssignmentExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(assign != nullptr);
+
+  REQUIRE(assign->lhs->expr_type() == ExprType::IDENTIFIER);
+  REQUIRE(assign->rhs->expr_type() == ExprType::INT_LITERAL);
+
+  auto *rhs = dynamic_cast<IntLetExpr *>(assign->rhs.get());
+
+  REQUIRE(rhs != nullptr);
+  REQUIRE(rhs->value == 10);
+}
+
+TEST_CASE("Parser parses assignment with binary rhs") {
+  auto result = parse("int main() { return a = b + c; }");
+
+  auto *assign = dynamic_cast<AssignmentExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(assign != nullptr);
+
+  REQUIRE(assign->rhs->expr_type() == ExprType::BINARY);
+
+  auto *binary = dynamic_cast<BinaryExpr *>(assign->rhs.get());
+
+  REQUIRE(binary != nullptr);
+  REQUIRE(binary->op == TokenType::PLUS);
+}
+
+TEST_CASE("Parser parses chained assignments") {
+  auto result = parse("int main() { return a = b = c; }");
+
+  auto *outer = dynamic_cast<AssignmentExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(outer != nullptr);
+
+  auto *lhs = dynamic_cast<IdentifierExpr *>(outer->lhs.get());
+  auto *inner = dynamic_cast<AssignmentExpr *>(outer->rhs.get());
+
+  REQUIRE(lhs != nullptr);
+  REQUIRE(inner != nullptr);
+
+  REQUIRE(lhs->identifier_name == "a");
+
+  auto *inner_lhs = dynamic_cast<IdentifierExpr *>(inner->lhs.get());
+  auto *inner_rhs = dynamic_cast<IdentifierExpr *>(inner->rhs.get());
+
+  REQUIRE(inner_lhs != nullptr);
+  REQUIRE(inner_rhs != nullptr);
+
+  REQUIRE(inner_lhs->identifier_name == "b");
+  REQUIRE(inner_rhs->identifier_name == "c");
+}
+
+TEST_CASE("Parser parses assignment precedence") {
+  auto result = parse("int main() { return a = b + c * d; }");
+
+  auto *assign = dynamic_cast<AssignmentExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(assign != nullptr);
+
+  auto *plus = dynamic_cast<BinaryExpr *>(assign->rhs.get());
+
+  REQUIRE(plus != nullptr);
+  REQUIRE(plus->op == TokenType::PLUS);
+
+  auto *mul = dynamic_cast<BinaryExpr *>(plus->right_expr.get());
+
+  REQUIRE(mul != nullptr);
+  REQUIRE(mul->op == TokenType::MULTIPLY);
+}
+
+TEST_CASE("Parser parses assignment to array element") {
+  auto result = parse("int main() { return arr[i] = value; }");
+
+  auto *assign = dynamic_cast<AssignmentExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(assign != nullptr);
+  REQUIRE(assign->lhs->expr_type() == ExprType::ARRAY_ACCESS);
+}
+
+TEST_CASE("Parser parses assignment to member") {
+  auto result = parse("int main() { return obj.field = value; }");
+
+  auto *assign = dynamic_cast<AssignmentExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(assign != nullptr);
+  REQUIRE(assign->lhs->expr_type() == ExprType::MEMBER_ACCESS);
+}
+
+TEST_CASE("Parser parses assignment through pointer member") {
+  auto result = parse("int main() { return ptr->field = value; }");
+
+  auto *assign = dynamic_cast<AssignmentExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(assign != nullptr);
+
+  auto *member = dynamic_cast<MemberAccessExpr *>(assign->lhs.get());
+
+  REQUIRE(member != nullptr);
+  REQUIRE(member->op == TokenType::ARROW);
+}
+
+TEST_CASE("Parser parses assignment through dereference") {
+  auto result = parse("int main() { return *ptr = value; }");
+
+  auto *assign = dynamic_cast<AssignmentExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(assign != nullptr);
+
+  auto *unary = dynamic_cast<UnaryExpr *>(assign->lhs.get());
+
+  REQUIRE(unary != nullptr);
+  REQUIRE(unary->op == TokenType::MULTIPLY);
+}
+
+TEST_CASE("Parser parses parenthesized assignment") {
+  auto result = parse("int main() { return (a = b); }");
+
+  auto *assign = dynamic_cast<AssignmentExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(assign != nullptr);
+
+  auto *lhs = dynamic_cast<IdentifierExpr *>(assign->lhs.get());
+  auto *rhs = dynamic_cast<IdentifierExpr *>(assign->rhs.get());
+
+  REQUIRE(lhs != nullptr);
+  REQUIRE(rhs != nullptr);
+
+  REQUIRE(lhs->identifier_name == "a");
+  REQUIRE(rhs->identifier_name == "b");
+}
+
+TEST_CASE("Parser desugars compound assignments") {
+  auto [expr, binary_op] = GENERATE(
+      std::pair{"a += b", TokenType::PLUS},
+      std::pair{"a -= b", TokenType::MINUS},
+      std::pair{"a *= b", TokenType::MULTIPLY},
+      std::pair{"a /= b", TokenType::DIVIDE},
+      std::pair{"a %= b", TokenType::MODULO},
+      std::pair{"a <<= b", TokenType::LEFT_SHIFT},
+      std::pair{"a >>= b", TokenType::RIGHT_SHIFT},
+      std::pair{"a &= b", TokenType::AMPERSAND},
+      std::pair{"a |= b", TokenType::PIPE},
+      std::pair{"a ^= b", TokenType::CARET});
+
+  DYNAMIC_SECTION(expr) {
+    std::string source = "int main() { return ";
+    source += expr;
+    source += "; }";
+
+    auto result = parse(source);
+
+    auto *assign = dynamic_cast<AssignmentExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+    REQUIRE(assign != nullptr);
+
+    auto *lhs = dynamic_cast<IdentifierExpr *>(assign->lhs.get());
+    REQUIRE(lhs != nullptr);
+    REQUIRE(lhs->identifier_name == "a");
+
+    auto *binary = dynamic_cast<BinaryExpr *>(assign->rhs.get());
+
+    REQUIRE(binary != nullptr);
+    REQUIRE(binary->op == binary_op);
+
+    auto *binary_lhs = dynamic_cast<IdentifierExpr *>(binary->left_expr.get());
+    auto *binary_rhs = dynamic_cast<IdentifierExpr *>(binary->right_expr.get());
+
+    REQUIRE(binary_lhs != nullptr);
+    REQUIRE(binary_rhs != nullptr);
+
+    REQUIRE(binary_lhs->identifier_name == "a");
+    REQUIRE(binary_rhs->identifier_name == "b");
+  }
+}
+
+TEST_CASE("Parser parses basic conditional expression") {
+  auto result = parse("int main() { return a ? b : c; }");
+
+  auto *cond = dynamic_cast<ConditionalExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(cond != nullptr);
+
+  auto *condition = dynamic_cast<IdentifierExpr *>(cond->condition.get());
+  auto *true_expr = dynamic_cast<IdentifierExpr *>(cond->true_expr.get());
+  auto *false_expr = dynamic_cast<IdentifierExpr *>(cond->false_expr.get());
+
+  REQUIRE(condition != nullptr);
+  REQUIRE(true_expr != nullptr);
+  REQUIRE(false_expr != nullptr);
+
+  REQUIRE(condition->identifier_name == "a");
+  REQUIRE(true_expr->identifier_name == "b");
+  REQUIRE(false_expr->identifier_name == "c");
+}
+
+TEST_CASE("Parser parses conditional with literal branches") {
+  auto result = parse("int main() { return a ? 10 : 20; }");
+
+  auto *cond = dynamic_cast<ConditionalExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(cond != nullptr);
+
+  REQUIRE(cond->condition->expr_type() == ExprType::IDENTIFIER);
+  REQUIRE(cond->true_expr->expr_type() == ExprType::INT_LITERAL);
+  REQUIRE(cond->false_expr->expr_type() == ExprType::INT_LITERAL);
+}
+
+TEST_CASE("Parser parses binary condition in conditional") {
+  auto result = parse("int main() { return a + b ? c : d; }");
+
+  auto *cond = dynamic_cast<ConditionalExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(cond != nullptr);
+
+  auto *binary = dynamic_cast<BinaryExpr *>(cond->condition.get());
+
+  REQUIRE(binary != nullptr);
+  REQUIRE(binary->op == TokenType::PLUS);
+}
+
+TEST_CASE("Parser parses binary true branch") {
+  auto result = parse("int main() { return a ? b + c : d; }");
+
+  auto *cond = dynamic_cast<ConditionalExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(cond != nullptr);
+
+  auto *binary = dynamic_cast<BinaryExpr *>(cond->true_expr.get());
+
+  REQUIRE(binary != nullptr);
+  REQUIRE(binary->op == TokenType::PLUS);
+}
+
+TEST_CASE("Parser parses binary false branch") {
+  auto result = parse("int main() { return a ? b : c + d; }");
+
+  auto *cond = dynamic_cast<ConditionalExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(cond != nullptr);
+
+  auto *binary = dynamic_cast<BinaryExpr *>(cond->false_expr.get());
+
+  REQUIRE(binary != nullptr);
+  REQUIRE(binary->op == TokenType::PLUS);
+}
+
+TEST_CASE("Parser parses nested conditional expressions") {
+  auto result = parse("int main() { return a ? b : c ? d : e; }");
+
+  auto *outer = dynamic_cast<ConditionalExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(outer != nullptr);
+
+  auto *inner = dynamic_cast<ConditionalExpr *>(outer->false_expr.get());
+
+  REQUIRE(inner != nullptr);
+
+  auto *cond = dynamic_cast<IdentifierExpr *>(inner->condition.get());
+
+  REQUIRE(cond != nullptr);
+  REQUIRE(cond->identifier_name == "c");
+}
+
+TEST_CASE("Parser parses parenthesized conditional") {
+  auto result = parse("int main() { return (a ? b : c); }");
+
+  REQUIRE(get_return_stmt(result)->expr_ptr->expr_type() == ExprType::CONDITIONAL);
+}
+
+TEST_CASE("Parser parses conditional precedence") {
+  auto result = parse("int main() { return a + b ? c : d + e; }");
+
+  auto *cond = dynamic_cast<ConditionalExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(cond != nullptr);
+
+  REQUIRE(cond->condition->expr_type() == ExprType::BINARY);
+  REQUIRE(cond->false_expr->expr_type() == ExprType::BINARY);
+}
+
+TEST_CASE("Parser parses conditional inside binary expression") {
+  auto result = parse("int main() { return (a ? b : c) + d; }");
+
+  auto *binary = dynamic_cast<BinaryExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(binary != nullptr);
+
+  REQUIRE(binary->left_expr->expr_type() == ExprType::CONDITIONAL);
+}
+
+TEST_CASE("Parser parses function calls in conditional") {
+  auto result = parse("int main() { return a ? foo() : bar(); }");
+
+  auto *cond = dynamic_cast<ConditionalExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(cond != nullptr);
+
+  REQUIRE(cond->true_expr->expr_type() == ExprType::FUNCTION_CALL);
+  REQUIRE(cond->false_expr->expr_type() == ExprType::FUNCTION_CALL);
+}
+
+TEST_CASE("Parser parses member access in conditional") {
+  auto result = parse("int main() { return a ? obj.x : ptr->x; }");
+
+  auto *cond = dynamic_cast<ConditionalExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(cond != nullptr);
+
+  REQUIRE(cond->true_expr->expr_type() == ExprType::MEMBER_ACCESS);
+  REQUIRE(cond->false_expr->expr_type() == ExprType::MEMBER_ACCESS);
+}
+
+TEST_CASE("Parser parses array access in conditional") {
+  auto result = parse("int main() { return a ? arr[i] : arr[j]; }");
+
+  auto *cond = dynamic_cast<ConditionalExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(cond != nullptr);
+
+  REQUIRE(cond->true_expr->expr_type() == ExprType::ARRAY_ACCESS);
+  REQUIRE(cond->false_expr->expr_type() == ExprType::ARRAY_ACCESS);
+}
+
+TEST_CASE("Parser parses sizeof identifier") {
+  auto result = parse("int main() { return sizeof x; }");
+
+  auto *sizeof_expr = dynamic_cast<SizeofExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(sizeof_expr != nullptr);
+
+  REQUIRE_FALSE(sizeof_expr->parsed_type.has_value());
+  REQUIRE(sizeof_expr->expr != nullptr);
+  REQUIRE(sizeof_expr->expr->expr_type() == ExprType::IDENTIFIER);
+
+  auto *id = dynamic_cast<IdentifierExpr *>(sizeof_expr->expr.get());
+
+  REQUIRE(id != nullptr);
+  REQUIRE(id->identifier_name == "x");
+}
+
+TEST_CASE("Parser parses sizeof parenthesized identifier") {
+  auto result = parse("int main() { return sizeof(x); }");
+
+  auto *sizeof_expr = dynamic_cast<SizeofExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(sizeof_expr != nullptr);
+
+  REQUIRE_FALSE(sizeof_expr->parsed_type.has_value());
+  REQUIRE(sizeof_expr->expr->expr_type() == ExprType::IDENTIFIER);
+}
+
+TEST_CASE("Parser parses sizeof binary expression") {
+  auto result = parse("int main() { return sizeof(a + b); }");
+
+  auto *sizeof_expr = dynamic_cast<SizeofExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(sizeof_expr != nullptr);
+
+  REQUIRE_FALSE(sizeof_expr->parsed_type.has_value());
+
+  auto *binary = dynamic_cast<BinaryExpr *>(sizeof_expr->expr.get());
+
+  REQUIRE(binary != nullptr);
+  REQUIRE(binary->op == TokenType::PLUS);
+}
+
+TEST_CASE("Parser parses sizeof function call") {
+  auto result = parse("int main() { return sizeof(foo()); }");
+
+  auto *sizeof_expr = dynamic_cast<SizeofExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(sizeof_expr != nullptr);
+
+  REQUIRE(sizeof_expr->expr->expr_type() == ExprType::FUNCTION_CALL);
+}
+
+TEST_CASE("Parser parses sizeof array access") {
+  auto result = parse("int main() { return sizeof(arr[i]); }");
+
+  auto *sizeof_expr = dynamic_cast<SizeofExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(sizeof_expr != nullptr);
+
+  REQUIRE(sizeof_expr->expr->expr_type() == ExprType::ARRAY_ACCESS);
+}
+
+TEST_CASE("Parser parses sizeof member access") {
+  auto result = parse("int main() { return sizeof(ptr->next); }");
+
+  auto *sizeof_expr = dynamic_cast<SizeofExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(sizeof_expr != nullptr);
+
+  REQUIRE(sizeof_expr->expr->expr_type() == ExprType::MEMBER_ACCESS);
+}
+
+TEST_CASE("Parser parses sizeof cast expression") {
+  auto result = parse("int main() { return sizeof((int)x); }");
+
+  auto *sizeof_expr = dynamic_cast<SizeofExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(sizeof_expr != nullptr);
+
+  REQUIRE(sizeof_expr->expr->expr_type() == ExprType::CAST);
+}
+
+TEST_CASE("Parser parses sizeof primitive types") {
+  auto [source, datatype] = GENERATE(
+      std::pair{"sizeof(int)", DataType::INT},
+      std::pair{"sizeof(char)", DataType::CHAR},
+      std::pair{"sizeof(float)", DataType::FLOAT},
+      std::pair{"sizeof(double)", DataType::DOUBLE},
+      std::pair{"sizeof(void)", DataType::VOID});
+
+  auto result = parse(std::string("int main() { return ") + source + "; }");
+
+  auto *sizeof_expr = dynamic_cast<SizeofExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(sizeof_expr != nullptr);
+
+  REQUIRE(sizeof_expr->parsed_type.has_value());
+  REQUIRE(sizeof_expr->expr == nullptr);
+
+  REQUIRE(sizeof_expr->parsed_type->datatype == datatype);
+}
+
+TEST_CASE("Parser parses sizeof pointer types") {
+  auto result = parse("int main() { return sizeof(int***); }");
+
+  auto *sizeof_expr = dynamic_cast<SizeofExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(sizeof_expr != nullptr);
+
+  REQUIRE(sizeof_expr->parsed_type.has_value());
+
+  REQUIRE(sizeof_expr->parsed_type->datatype == DataType::INT);
+  REQUIRE(sizeof_expr->parsed_type->pointer_depth == 3);
+}
+
+/*
+TODO: Add support for sizeof(array[][]) support
+TEST_CASE("Parser parses sizeof array types") {
+  auto result = parse("int main() { return sizeof(int[10][20]); }");
+
+  auto *sizeof_expr = dynamic_cast<SizeofExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(sizeof_expr != nullptr);
+
+  REQUIRE(sizeof_expr->parsed_type.has_value());
+
+  REQUIRE(sizeof_expr->parsed_type->datatype == DataType::INT);
+  REQUIRE(sizeof_expr->parsed_type->dimensions == std::vector<size_t>{10, 20});
+}
+*/
+
+TEST_CASE("Parser parses sizeof struct type") {
+  auto result = parse(R"(
+    struct Foo { int x; };
+
+    int main() {
+      return sizeof(struct Foo);
+    }
+  )");
+
+  auto *sizeof_expr = dynamic_cast<SizeofExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(sizeof_expr != nullptr);
+
+  REQUIRE(sizeof_expr->parsed_type.has_value());
+
+  REQUIRE(sizeof_expr->parsed_type->datatype == DataType::STRUCT);
+  REQUIRE(sizeof_expr->parsed_type->custom_name == "Foo");
+}
+
+TEST_CASE("Parser parses sizeof union type") {
+  auto result = parse(R"(
+    union Foo { int x; };
+
+    int main() {
+      return sizeof(union Foo);
+    }
+  )");
+
+  auto *sizeof_expr = dynamic_cast<SizeofExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(sizeof_expr != nullptr);
+
+  REQUIRE(sizeof_expr->parsed_type.has_value());
+
+  REQUIRE(sizeof_expr->parsed_type->datatype == DataType::UNION);
+  REQUIRE(sizeof_expr->parsed_type->custom_name == "Foo");
+}
+
+TEST_CASE("Parser parses sizeof enum type") {
+  auto result = parse(R"(
+    enum Color { RED };
+
+    int main() {
+      return sizeof(enum Color);
+    }
+  )");
+
+  auto *sizeof_expr = dynamic_cast<SizeofExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(sizeof_expr != nullptr);
+
+  REQUIRE(sizeof_expr->parsed_type.has_value());
+
+  REQUIRE(sizeof_expr->parsed_type->datatype == DataType::ENUM);
+  REQUIRE(sizeof_expr->parsed_type->custom_name == "Color");
+}
+
+TEST_CASE("Parser parses dereference of pointer member access") {
+  auto result = parse("int main() { return *ptr->next; }");
+
+  auto *unary = dynamic_cast<UnaryExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(unary != nullptr);
+  REQUIRE(unary->op == TokenType::MULTIPLY);
+
+  REQUIRE(unary->right_expr->expr_type() == ExprType::MEMBER_ACCESS);
+
+  auto *member = dynamic_cast<MemberAccessExpr *>(unary->right_expr.get());
+
+  REQUIRE(member != nullptr);
+  REQUIRE(member->op == TokenType::ARROW);
+  REQUIRE(member->member_name == "next");
+}
+
+TEST_CASE("Parser parses address of member access") {
+  auto result = parse("int main() { return &obj.field; }");
+
+  auto *unary = dynamic_cast<UnaryExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(unary != nullptr);
+  REQUIRE(unary->op == TokenType::AMPERSAND);
+
+  REQUIRE(unary->right_expr->expr_type() == ExprType::MEMBER_ACCESS);
+}
+
+TEST_CASE("Parser parses dereference of array element") {
+  auto result = parse("int main() { return *arr[i]; }");
+
+  auto *unary = dynamic_cast<UnaryExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(unary != nullptr);
+  REQUIRE(unary->op == TokenType::MULTIPLY);
+
+  REQUIRE(unary->right_expr->expr_type() == ExprType::ARRAY_ACCESS);
+}
+
+TEST_CASE("Parser parses address of array element") {
+  auto result = parse("int main() { return &arr[i]; }");
+
+  auto *unary = dynamic_cast<UnaryExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(unary != nullptr);
+  REQUIRE(unary->op == TokenType::AMPERSAND);
+
+  REQUIRE(unary->right_expr->expr_type() == ExprType::ARRAY_ACCESS);
+}
+
+TEST_CASE("Parser parses cast before binary operator") {
+  auto result = parse("int main() { return (int)x + y; }");
+
+  auto *binary = dynamic_cast<BinaryExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(binary != nullptr);
+  REQUIRE(binary->op == TokenType::PLUS);
+
+  REQUIRE(binary->left_expr->expr_type() == ExprType::CAST);
+  REQUIRE(binary->right_expr->expr_type() == ExprType::IDENTIFIER);
+}
+
+TEST_CASE("Parser parses cast of binary expression (int)") {
+  auto result = parse("int main() { return (int)(x + y); }");
+
+  auto *cast = dynamic_cast<CastExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(cast != nullptr);
+
+  REQUIRE(cast->expr->expr_type() == ExprType::BINARY);
+}
+
+TEST_CASE("Parser parses assignment with conditional rhs") {
+  auto result = parse("int main() { return a = b ? c : d; }");
+
+  auto *assign = dynamic_cast<AssignmentExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(assign != nullptr);
+
+  REQUIRE(assign->rhs->expr_type() == ExprType::CONDITIONAL);
+}
+
+TEST_CASE("Parser parses nested conditional in true branch") {
+  auto result = parse("int main() { return a ? b ? c : d : e; }");
+
+  auto *outer = dynamic_cast<ConditionalExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(outer != nullptr);
+
+  REQUIRE(outer->true_expr->expr_type() == ExprType::CONDITIONAL);
+
+  auto *inner = dynamic_cast<ConditionalExpr *>(outer->true_expr.get());
+
+  REQUIRE(inner != nullptr);
+
+  auto *cond = dynamic_cast<IdentifierExpr *>(inner->condition.get());
+
+  REQUIRE(cond != nullptr);
+  REQUIRE(cond->identifier_name == "b");
+}
+
+TEST_CASE("Parser parses sizeof precedence") {
+  auto result = parse("int main() { return sizeof x + 1; }");
+
+  auto *binary = dynamic_cast<BinaryExpr *>(get_return_stmt(result)->expr_ptr.get());
+
+  REQUIRE(binary != nullptr);
+  REQUIRE(binary->op == TokenType::PLUS);
+
+  REQUIRE(binary->left_expr->expr_type() == ExprType::SIZEOF);
+  REQUIRE(binary->right_expr->expr_type() == ExprType::INT_LITERAL);
+}

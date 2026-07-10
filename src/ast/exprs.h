@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../lexer/lexer.h"
-#include "../types/Datatypes.h"
 #include "../types/ParsedTypes.h"
 #include "../types/Types.h"
 

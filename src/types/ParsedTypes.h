@@ -3,7 +3,6 @@
 #include "./Datatypes.h"
 
 #include <cstdint>
-#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
