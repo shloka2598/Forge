@@ -1,7 +1,5 @@
 #pragma once
 
-#include "../lexer/lexer.h"
-#include "../types/Datatypes.h"
 #include "./ArrayInitializer.h"
 #include "./custom_types.h"
 #include "./exprs.h"
