@@ -19,3 +19,6 @@ struct ParserResult {
 
 ParserResult parse(std::string_view source);
 LexerResult tokenize(std::string_view source);
+
+FunctionDeclStmt *get_function_decl(ParserResult &);
+ReturnStmt *get_return_stmt(ParserResult &);

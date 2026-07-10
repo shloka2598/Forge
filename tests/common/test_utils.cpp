@@ -1,5 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
+#include <filesystem>
+#include <fstream>
+
 #include "parser/parser.h"
 #include "test_utils.h"
 
@@ -23,4 +27,28 @@ ParserResult parse(std::string_view source) {
   parser.parse();
 
   return result;
+}
+
+FunctionDeclStmt *get_function_decl(ParserResult &result) {
+  for (auto &stmt : result.program.statements) {
+    if (stmt->stmt_type() == StmtType::FUNCTION_DECL_STMT) {
+      return static_cast<FunctionDeclStmt *>(stmt.get());
+    }
+  }
+
+  return nullptr;
+}
+
+ReturnStmt *get_return_stmt(ParserResult &result) {
+  FunctionDeclStmt *fn = get_function_decl(result);
+
+  REQUIRE(fn != nullptr);
+  REQUIRE(fn->declaration->body != nullptr);
+  REQUIRE(fn->declaration->body->statements.size() == 1);
+
+  auto *ret = dynamic_cast<ReturnStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(ret != nullptr);
+
+  return ret;
 }
