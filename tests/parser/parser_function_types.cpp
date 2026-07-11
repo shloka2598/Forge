@@ -1545,3 +1545,177 @@ TEST_CASE("Parser parses sizeof cast expression 2") {
   REQUIRE(cast != nullptr);
   REQUIRE(cast->target_type.datatype == DataType::INT);
 }
+
+TEST_CASE("Parser parses single empty statement") {
+  auto result = parse(R"(
+      int main() {
+          ;
+      }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  REQUIRE(fn != nullptr);
+  REQUIRE(fn->declaration->body->statements.size() == 1);
+
+  REQUIRE(dynamic_cast<EmptyStmt *>(fn->declaration->body->statements[0].get()) != nullptr);
+}
+
+TEST_CASE("Parser parses multiple empty statements") {
+  auto result = parse(R"(
+      int main() {
+          ;
+          ;
+          ;
+      }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  REQUIRE(fn != nullptr);
+  REQUIRE(fn->declaration->body->statements.size() == 3);
+
+  for (auto &stmt : fn->declaration->body->statements) {
+    REQUIRE(dynamic_cast<EmptyStmt *>(stmt.get()) != nullptr);
+  }
+}
+
+TEST_CASE("Parser parses empty statement between statements") {
+  auto result = parse(R"(
+      int main() {
+          int x;
+          ;
+          return x;
+      }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  REQUIRE(fn != nullptr);
+  REQUIRE(fn->declaration->body->statements.size() == 3);
+
+  REQUIRE(dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get()) != nullptr);
+  REQUIRE(dynamic_cast<EmptyStmt *>(fn->declaration->body->statements[1].get()) != nullptr);
+  REQUIRE(dynamic_cast<ReturnStmt *>(fn->declaration->body->statements[2].get()) != nullptr);
+}
+
+TEST_CASE("Parser parses empty while body") {
+  auto result = parse(R"(
+      int main() {
+          while (1);
+      }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *loop = dynamic_cast<WhileStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(loop != nullptr);
+
+  REQUIRE(loop->body != nullptr);
+  REQUIRE(loop->body->statements.size() == 1);
+
+  REQUIRE(dynamic_cast<EmptyStmt *>(loop->body->statements[0].get()) != nullptr);
+}
+
+TEST_CASE("Parser parses empty do while body") {
+  auto result = parse(R"(
+      int main() {
+          do;
+          while (1);
+      }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *loop = dynamic_cast<DoWhileStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(loop != nullptr);
+  REQUIRE(loop->body != nullptr);
+  REQUIRE(loop->body->statements.size() == 1);
+  REQUIRE(dynamic_cast<EmptyStmt *>(loop->body->statements[0].get()) != nullptr);
+}
+
+TEST_CASE("Parser parses empty for body") {
+  auto result = parse(R"(
+      int main() {
+          for (;;);
+      }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *loop = dynamic_cast<ForStmt *>(
+      fn->declaration->body->statements[0].get());
+
+  REQUIRE(loop != nullptr);
+
+  REQUIRE(loop->body != nullptr);
+  REQUIRE(loop->body->statements.size() == 1);
+
+  REQUIRE(dynamic_cast<EmptyStmt *>(loop->body->statements[0].get()) != nullptr);
+}
+
+TEST_CASE("Parser parses empty if body") {
+  auto result = parse(R"(
+      int main() {
+          if (1);
+      }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<IfStmt *>(
+      fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+  REQUIRE(stmt->then_body != nullptr);
+  REQUIRE(stmt->then_body->statements.size() == 1);
+  REQUIRE(dynamic_cast<EmptyStmt *>(stmt->then_body->statements[0].get()) != nullptr);
+  REQUIRE(stmt->else_body == nullptr);
+}
+
+TEST_CASE("Parser parses empty else body") {
+  auto result = parse(R"(
+      int main() {
+          if (1) {
+          } else;
+      }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<IfStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+
+  REQUIRE(stmt->else_body != nullptr);
+  REQUIRE(stmt->else_body->statements.size() == 1);
+
+  REQUIRE(dynamic_cast<EmptyStmt *>(stmt->else_body->statements[0].get()) != nullptr);
+}
+
+TEST_CASE("Parser parses switch case with empty statement") {
+  auto result = parse(R"(
+      int main() {
+          switch (x) {
+              case 1:
+                  ;
+                  break;
+          }
+      }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *sw = dynamic_cast<SwitchStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(sw != nullptr);
+
+  REQUIRE(sw->cases.size() == 1);
+  REQUIRE(sw->cases[0].body->statements.size() == 2);
+
+  REQUIRE(dynamic_cast<EmptyStmt *>(sw->cases[0].body->statements[0].get()) != nullptr);
+
+  REQUIRE(dynamic_cast<BreakStmt *>(sw->cases[0].body->statements[1].get()) != nullptr);
+}
