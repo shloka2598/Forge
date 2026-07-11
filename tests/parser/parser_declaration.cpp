@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-// #include <catch2/generators/catch_generators.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include "common/test_utils.h"
 
@@ -1566,4 +1566,1248 @@ TEST_CASE("Parser parses struct field using typedef type") {
   REQUIRE(stmt->declaration->fields[0].type.datatype == DataType::TYPEDEF_NAME);
 
   REQUIRE(stmt->declaration->fields[0].type.custom_name == "INT");
+}
+
+TEST_CASE("Parser parses int variable declaration") {
+  auto result = parse(R"(
+    int main() {
+      int x;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  REQUIRE(fn->declaration->body->statements.size() == 1);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+
+  REQUIRE(stmt->type.datatype == DataType::INT);
+  REQUIRE(stmt->var_name == "x");
+
+  REQUIRE(stmt->expr_ptr == nullptr);
+  REQUIRE_FALSE(stmt->init.has_value());
+}
+
+TEST_CASE("Parser parses initialized int variable") {
+  auto result = parse(R"(
+    int main() {
+      int x = 42;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+
+  REQUIRE(stmt->expr_ptr != nullptr);
+
+  REQUIRE(stmt->expr_ptr->expr_type() == ExprType::INT_LITERAL);
+
+  auto *lit = dynamic_cast<IntLetExpr *>(stmt->expr_ptr.get());
+
+  REQUIRE(lit != nullptr);
+  REQUIRE(lit->value == 42);
+}
+
+TEST_CASE("Parser parses double variable") {
+  auto result = parse(R"(
+    int main() {
+      double pi;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt->type.datatype == DataType::DOUBLE);
+  REQUIRE(stmt->var_name == "pi");
+}
+
+TEST_CASE("Parser parses pointer variable") {
+  auto result = parse(R"(
+    int main() {
+      int *ptr;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt->type.datatype == DataType::INT);
+  REQUIRE(stmt->type.pointer_depth == 1);
+
+  REQUIRE(stmt->var_name == "ptr");
+}
+
+TEST_CASE("Parser parses double pointer variable") {
+  auto result = parse(R"(
+    int main() {
+      int **ptr;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt->type.pointer_depth == 2);
+}
+
+TEST_CASE("Parser parses array variable") {
+  auto result = parse(R"(
+    int main() {
+      int arr[10];
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt->type.datatype == DataType::INT);
+
+  REQUIRE(stmt->type.dimensions == std::vector<size_t>{10});
+}
+
+TEST_CASE("Parser parses multidimensional array variable") {
+  auto result = parse(R"(
+    int main() {
+      int matrix[3][4][5];
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt->type.dimensions == std::vector<size_t>{3, 4, 5});
+}
+
+TEST_CASE("Parser parses variable initialized with expression") {
+  auto result = parse(R"(
+    int main() {
+      int x = a + b * c;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt->expr_ptr != nullptr);
+
+  REQUIRE(stmt->expr_ptr->expr_type() == ExprType::BINARY);
+}
+
+TEST_CASE("Parser parses variable initialized with cast") {
+  auto result = parse(R"(
+    int main() {
+      int x = (int)foo;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt->expr_ptr->expr_type() == ExprType::CAST);
+}
+
+TEST_CASE("Parser parses variable initialized with function call") {
+  auto result = parse(R"(
+    int main() {
+      int x = foo(1, 2);
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt->expr_ptr->expr_type() == ExprType::FUNCTION_CALL);
+}
+
+TEST_CASE("Parser parses variable of typedef type") {
+  auto result = parse(R"(
+    typedef int INT;
+
+    int main() {
+      INT value;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+
+  REQUIRE(stmt->type.datatype == DataType::TYPEDEF_NAME);
+  REQUIRE(stmt->type.custom_name == "INT");
+
+  REQUIRE(stmt->var_name == "value");
+}
+
+TEST_CASE("Parser parses initialized typedef variable") {
+  auto result = parse(R"(
+    typedef int INT;
+
+    int main() {
+      INT value = 10;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+
+  REQUIRE(stmt->type.datatype == DataType::TYPEDEF_NAME);
+
+  REQUIRE(stmt->expr_ptr != nullptr);
+
+  REQUIRE(stmt->expr_ptr->expr_type() == ExprType::INT_LITERAL);
+}
+
+TEST_CASE("Parser parses struct variable") {
+  auto result = parse(R"(
+    struct Point {
+      int x;
+    };
+
+    int main() {
+      struct Point p;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+
+  REQUIRE(stmt->type.datatype == DataType::STRUCT);
+  REQUIRE(stmt->type.custom_name == "Point");
+}
+
+TEST_CASE("Parser parses struct pointer variable") {
+  auto result = parse(R"(
+    struct Point {
+      int x;
+    };
+
+    int main() {
+      struct Point *p;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt->type.datatype == DataType::STRUCT);
+  REQUIRE(stmt->type.pointer_depth == 1);
+}
+
+TEST_CASE("Parser parses union variable") {
+  auto result = parse(R"(
+    union Value {
+      int x;
+    };
+
+    int main() {
+      union Value value;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt->type.datatype == DataType::UNION);
+  REQUIRE(stmt->type.custom_name == "Value");
+}
+
+TEST_CASE("Parser parses enum variable") {
+  auto result = parse(R"(
+    enum Color {
+      RED
+    };
+
+    int main() {
+      enum Color c;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt->type.datatype == DataType::ENUM);
+  REQUIRE(stmt->type.custom_name == "Color");
+}
+
+TEST_CASE("Parser parses typedef struct variable") {
+  auto result = parse(R"(
+    typedef struct {
+      int x;
+    } Point;
+
+    int main() {
+      Point p;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt->type.datatype == DataType::TYPEDEF_NAME);
+  REQUIRE(stmt->type.custom_name == "Point");
+}
+
+TEST_CASE("Parser parses typedef union variable") {
+  auto result = parse(R"(
+    typedef union {
+      int x;
+    } Value;
+
+    int main() {
+      Value v;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt->type.datatype == DataType::TYPEDEF_NAME);
+  REQUIRE(stmt->type.custom_name == "Value");
+}
+
+TEST_CASE("Parser parses typedef enum variable") {
+  auto result = parse(R"(
+    typedef enum {
+      RED
+    } Color;
+
+    int main() {
+      Color c;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt->type.datatype == DataType::TYPEDEF_NAME);
+  REQUIRE(stmt->type.custom_name == "Color");
+}
+
+TEST_CASE("Parser parses typedef pointer variable") {
+  auto result = parse(R"(
+    typedef int *INT_PTR;
+
+    int main() {
+      INT_PTR ptr;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt->type.datatype == DataType::TYPEDEF_NAME);
+  REQUIRE(stmt->type.custom_name == "INT_PTR");
+}
+
+TEST_CASE("Parser parses typedef array variable") {
+  auto result = parse(R"(
+    typedef int ARRAY[10];
+
+    int main() {
+      ARRAY values;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt->type.datatype == DataType::TYPEDEF_NAME);
+  REQUIRE(stmt->type.custom_name == "ARRAY");
+}
+
+TEST_CASE("Parser parses pointer to typedef variable") {
+  auto result = parse(R"(
+    typedef int INT;
+
+    int main() {
+      INT *ptr;
+    }
+  )");
+
+  auto *fn = get_function_decl(result);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt->type.datatype == DataType::TYPEDEF_NAME);
+
+  REQUIRE(stmt->type.pointer_depth == 1);
+}
+
+TEST_CASE("Parser parses integer type specifiers") {
+  auto [source, expected] = GENERATE(
+      table<std::string, DataType>({
+          {"int", DataType::INT},
+          {"signed", DataType::INT},
+          {"signed int", DataType::INT},
+          {"unsigned", DataType::UINT},
+          {"unsigned int", DataType::UINT},
+          {"short", DataType::SHORT},
+          {"short int", DataType::SHORT},
+          {"unsigned short", DataType::USHORT},
+          {"unsigned short int", DataType::USHORT},
+          {"long", DataType::LONG},
+          {"long int", DataType::LONG},
+          {"unsigned long", DataType::ULONG},
+          {"unsigned long int", DataType::ULONG},
+          {"long long", DataType::LONGLONG},
+          {"long long int", DataType::LONGLONG},
+          {"unsigned long long", DataType::ULONGLONG},
+          {"unsigned long long int", DataType::ULONGLONG},
+      }));
+
+  std::string program = "int main() {\n";
+  program += source;
+  program += " value;\n}";
+
+  auto result = parse(program);
+
+  auto *fn = get_function_decl(result);
+
+  REQUIRE(fn->declaration->body->statements.size() == 1);
+
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+  REQUIRE(stmt->var_name == "value");
+  REQUIRE(stmt->type.datatype == expected);
+  REQUIRE(stmt->type.pointer_depth == 0);
+  REQUIRE(stmt->type.dimensions.empty());
+  REQUIRE(stmt->expr_ptr == nullptr);
+  REQUIRE_FALSE(stmt->init.has_value());
+}
+
+TEST_CASE("Parser parses primitive type specifiers") {
+  auto [source, expected] = GENERATE(
+      table<std::string, DataType>({
+          {"char", DataType::CHAR},
+          {"unsigned char", DataType::UCHAR},
+          {"float", DataType::FLOAT},
+          {"double", DataType::DOUBLE},
+          {"long double", DataType::LONGDOUBLE},
+          {"void*", DataType::VOID},
+      }));
+
+  std::string program = "int main() {\n";
+  program += source;
+  program += " value;\n}";
+
+  auto result = parse(program);
+
+  auto *fn = get_function_decl(result);
+  auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+
+  REQUIRE(stmt->type.datatype == expected);
+
+  if (expected == DataType::VOID) {
+    REQUIRE(stmt->type.pointer_depth == 1);
+  } else {
+    REQUIRE(stmt->type.pointer_depth == 0);
+  }
+}
+
+TEST_CASE("Parser parses single type qualifiers") {
+  auto [source, qualifier] = GENERATE(
+      table<std::string, uint8_t>({
+          {"const int", static_cast<uint8_t>(TypeQualifier::CONST)},
+          {"volatile int", static_cast<uint8_t>(TypeQualifier::VOLATILE)},
+          {"restrict int*", static_cast<uint8_t>(TypeQualifier::RESTRICT)},
+      }));
+
+  DYNAMIC_SECTION(source) {
+    auto result = parse(
+        "int main() {\n" + source +
+        " value;\n"
+        "}");
+
+    auto *fn = get_function_decl(result);
+    auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+    REQUIRE(stmt != nullptr);
+    REQUIRE(stmt->type.qualifiers == qualifier);
+  }
+}
+
+TEST_CASE("Parser parses qualifier combinations") {
+  auto [source, qualifiers] = GENERATE(
+      table<std::string, uint8_t>({
+          {
+              "const volatile int",
+              static_cast<uint8_t>(TypeQualifier::CONST) |
+                  static_cast<uint8_t>(TypeQualifier::VOLATILE),
+          },
+          {
+              "const restrict int*",
+              static_cast<uint8_t>(TypeQualifier::CONST) |
+                  static_cast<uint8_t>(TypeQualifier::RESTRICT),
+          },
+          {
+              "volatile restrict int*",
+              static_cast<uint8_t>(TypeQualifier::VOLATILE) |
+                  static_cast<uint8_t>(TypeQualifier::RESTRICT),
+          },
+          {
+              "const volatile restrict int*",
+              static_cast<uint8_t>(TypeQualifier::CONST) |
+                  static_cast<uint8_t>(TypeQualifier::VOLATILE) |
+                  static_cast<uint8_t>(TypeQualifier::RESTRICT),
+          },
+      }));
+
+  DYNAMIC_SECTION(source) {
+    auto result = parse(
+        "int main() {\n" + source +
+        " value;\n"
+        "}");
+
+    auto *fn = get_function_decl(result);
+    auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+    REQUIRE(stmt != nullptr);
+    REQUIRE(stmt->type.qualifiers == qualifiers);
+  }
+}
+
+TEST_CASE("Parser parses qualified pointer declarations") {
+  auto [source, qualifiers, ptr_depth] = GENERATE(
+      table<std::string, uint8_t, size_t>({
+          {
+              "const int *",
+              static_cast<uint8_t>(TypeQualifier::CONST),
+              1,
+          },
+          {
+              "volatile int **",
+              static_cast<uint8_t>(TypeQualifier::VOLATILE),
+              2,
+          },
+          {
+              "const volatile int ***",
+              static_cast<uint8_t>(TypeQualifier::CONST) |
+                  static_cast<uint8_t>(TypeQualifier::VOLATILE),
+              3,
+          },
+      }));
+
+  DYNAMIC_SECTION(source) {
+    auto result = parse(
+        "int main() {\n" + source +
+        " ptr;\n"
+        "}");
+
+    auto *fn = get_function_decl(result);
+
+    auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+    REQUIRE(stmt != nullptr);
+
+    REQUIRE(stmt->type.qualifiers == qualifiers);
+    REQUIRE(stmt->type.pointer_depth == ptr_depth);
+  }
+}
+
+TEST_CASE("Parser parses qualified arrays") {
+  auto [source, qualifiers] = GENERATE(
+      table<std::string, uint8_t>({
+          {
+              "const int",
+              static_cast<uint8_t>(TypeQualifier::CONST),
+          },
+          {
+              "volatile int",
+              static_cast<uint8_t>(TypeQualifier::VOLATILE),
+          },
+      }));
+
+  DYNAMIC_SECTION(source) {
+    auto result = parse(
+        "int main() {\n" + source +
+        " arr[10];\n"
+        "}");
+
+    auto *fn = get_function_decl(result);
+
+    auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+    REQUIRE(stmt != nullptr);
+    REQUIRE(stmt->type.qualifiers == qualifiers);
+    REQUIRE(stmt->type.dimensions == std::vector<size_t>{10});
+  }
+}
+
+TEST_CASE("Parser parses qualified typedef variables") {
+  auto [source, qualifiers] = GENERATE(
+      table<std::string, uint8_t>({
+          {
+              "const INT",
+              static_cast<uint8_t>(TypeQualifier::CONST),
+          },
+          {
+              "volatile INT",
+              static_cast<uint8_t>(TypeQualifier::VOLATILE),
+          },
+          {
+              "const volatile INT",
+              static_cast<uint8_t>(TypeQualifier::CONST) |
+                  static_cast<uint8_t>(TypeQualifier::VOLATILE),
+          },
+      }));
+
+  DYNAMIC_SECTION(source) {
+    auto result = parse(
+        "typedef int INT;\n"
+        "int main() {\n" +
+        source +
+        " value;\n"
+        "}");
+
+    auto *fn = get_function_decl(result);
+
+    auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+    REQUIRE(stmt != nullptr);
+    REQUIRE(stmt->type.datatype == DataType::TYPEDEF_NAME);
+    REQUIRE(stmt->type.custom_name == "INT");
+    REQUIRE(stmt->type.qualifiers == qualifiers);
+  }
+}
+
+TEST_CASE("Parser parses storage class specifiers") {
+  auto [source, storage] = GENERATE(
+      table<std::string, StorageClass>({
+          {"static int", StorageClass::STATIC},
+          {"extern int", StorageClass::EXTERN},
+          {"register int", StorageClass::REGISTER},
+          {"auto int", StorageClass::AUTO},
+      }));
+
+  DYNAMIC_SECTION(source) {
+    auto result = parse(
+        "int main() {\n" + source +
+        " value;\n"
+        "}");
+
+    auto *fn = get_function_decl(result);
+
+    auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+    REQUIRE(stmt != nullptr);
+    REQUIRE(stmt->type.storage == storage);
+    REQUIRE(stmt->type.datatype == DataType::INT);
+  }
+}
+
+TEST_CASE("Parser parses storage classes with qualifiers") {
+  auto [source, storage, qualifiers] = GENERATE(
+      table<std::string, StorageClass, uint8_t>({
+          {
+              "static const int",
+              StorageClass::STATIC,
+              static_cast<uint8_t>(TypeQualifier::CONST),
+          },
+          {
+              "extern volatile int",
+              StorageClass::EXTERN,
+              static_cast<uint8_t>(TypeQualifier::VOLATILE),
+          },
+          {
+              "register const volatile int",
+              StorageClass::REGISTER,
+              static_cast<uint8_t>(TypeQualifier::CONST) |
+                  static_cast<uint8_t>(TypeQualifier::VOLATILE),
+          },
+          {
+              "auto const int",
+              StorageClass::AUTO,
+              static_cast<uint8_t>(TypeQualifier::CONST),
+          },
+      }));
+
+  DYNAMIC_SECTION(source) {
+    auto result = parse(
+        "int main() {\n" + source +
+        " value;\n"
+        "}");
+
+    auto *fn = get_function_decl(result);
+
+    auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+    REQUIRE(stmt != nullptr);
+    REQUIRE(stmt->type.storage == storage);
+    REQUIRE(stmt->type.qualifiers == qualifiers);
+  }
+}
+
+TEST_CASE("Parser parses storage class pointer declarations") {
+  auto [source, storage, ptr_depth] = GENERATE(
+      table<std::string, StorageClass, size_t>({
+          {
+              "static int *",
+              StorageClass::STATIC,
+              1,
+          },
+          {
+              "extern int **",
+              StorageClass::EXTERN,
+              2,
+          },
+          {
+              "register char ***",
+              StorageClass::REGISTER,
+              3,
+          },
+      }));
+
+  DYNAMIC_SECTION(source) {
+    auto result = parse(
+        "int main() {\n" + source +
+        " ptr;\n"
+        "}");
+
+    auto *fn = get_function_decl(result);
+
+    auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+    REQUIRE(stmt != nullptr);
+    REQUIRE(stmt->type.storage == storage);
+    REQUIRE(stmt->type.pointer_depth == ptr_depth);
+  }
+}
+
+TEST_CASE("Parser parses storage class array declarations") {
+  auto [source, storage] = GENERATE(
+      table<std::string, StorageClass>({
+          {"static int", StorageClass::STATIC},
+          {"extern int", StorageClass::EXTERN},
+      }));
+
+  DYNAMIC_SECTION(source) {
+    auto result = parse(
+        "int main() {\n" + source +
+        " arr[5][10];\n"
+        "}");
+
+    auto *fn = get_function_decl(result);
+    auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+    REQUIRE(stmt != nullptr);
+    REQUIRE(stmt->type.storage == storage);
+    REQUIRE(stmt->type.dimensions == std::vector<size_t>{5, 10});
+  }
+}
+
+TEST_CASE("Parser parses storage class with typedef type") {
+  auto [source, storage] = GENERATE(
+      table<std::string, StorageClass>({
+          {"static INT", StorageClass::STATIC},
+          {"extern INT", StorageClass::EXTERN},
+          {"register INT", StorageClass::REGISTER},
+          {"auto INT", StorageClass::AUTO},
+      }));
+
+  DYNAMIC_SECTION(source) {
+    auto result = parse(
+        "typedef int INT;\n"
+        "int main() {\n" +
+        source +
+        " value;\n"
+        "}");
+
+    auto *fn = get_function_decl(result);
+    auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+    REQUIRE(stmt != nullptr);
+    REQUIRE(stmt->type.storage == storage);
+    REQUIRE(stmt->type.datatype == DataType::TYPEDEF_NAME);
+    REQUIRE(stmt->type.custom_name == "INT");
+  }
+}
+
+TEST_CASE("Parser accepts different integer specifier orders") {
+  auto source = GENERATE(
+      "unsigned long int",
+      "long unsigned int",
+      "int unsigned long",
+      "long int unsigned",
+      "unsigned int long");
+
+  DYNAMIC_SECTION(source) {
+    auto result = parse(
+        "int main() {\n" + std::string(source) +
+        " value;\n"
+        "}");
+
+    auto *fn = get_function_decl(result);
+
+    auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+    REQUIRE(stmt != nullptr);
+
+    REQUIRE(stmt->type.datatype == DataType::ULONG);
+  }
+}
+
+TEST_CASE("Parser accepts different long long specifier orders") {
+  auto source = GENERATE(
+      "unsigned long long",
+      "long unsigned long",
+      "long long unsigned",
+      "unsigned long long int",
+      "long unsigned long int");
+
+  DYNAMIC_SECTION(source) {
+    auto result = parse(
+        "int main() {\n" + std::string(source) +
+        " value;\n"
+        "}");
+
+    auto *fn = get_function_decl(result);
+    auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+    REQUIRE(stmt != nullptr);
+    REQUIRE(stmt->type.datatype == DataType::ULONGLONG);
+  }
+}
+
+TEST_CASE("Parser accepts different qualifier orders") {
+  auto source = GENERATE(
+      "const volatile int",
+      "volatile const int",
+      "int const volatile",
+      "int volatile const");
+
+  DYNAMIC_SECTION(source) {
+    auto result = parse(
+        "int main() {\n" + std::string(source) +
+        " value;\n"
+        "}");
+
+    auto *fn = get_function_decl(result);
+
+    auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+    REQUIRE(stmt != nullptr);
+
+    REQUIRE(stmt->type.qualifiers == (static_cast<uint8_t>(TypeQualifier::CONST) | static_cast<uint8_t>(TypeQualifier::VOLATILE)));
+  }
+}
+
+TEST_CASE("Parser accepts storage class before or after qualifiers") {
+  auto source = GENERATE(
+      "static const int",
+      "const static int",
+      "volatile static int",
+      "static volatile int");
+
+  DYNAMIC_SECTION(source) {
+    auto result = parse(
+        "int main() {\n" + std::string(source) +
+        " value;\n"
+        "}");
+
+    auto *fn = get_function_decl(result);
+    auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+    REQUIRE(stmt != nullptr);
+    REQUIRE(stmt->type.storage == StorageClass::STATIC);
+  }
+}
+
+TEST_CASE("Parser accepts mixed declaration specifier order") {
+  auto source = GENERATE(
+      "static const unsigned long int",
+      "const static unsigned long int",
+      "unsigned static const long int",
+      "long unsigned static const int",
+      "const unsigned static long int");
+
+  DYNAMIC_SECTION(source) {
+    auto result = parse(
+        "int main() {\n" + std::string(source) +
+        " value;\n"
+        "}");
+
+    auto *fn = get_function_decl(result);
+
+    auto *stmt = dynamic_cast<VariableDeclarationStmt *>(fn->declaration->body->statements[0].get());
+
+    REQUIRE(stmt != nullptr);
+    REQUIRE(stmt->type.storage == StorageClass::STATIC);
+    REQUIRE(stmt->type.qualifiers == static_cast<uint8_t>(TypeQualifier::CONST));
+    REQUIRE(stmt->type.datatype == DataType::ULONG);
+  }
+}
+
+TEST_CASE("Parser parses global int variable") {
+  auto result = parse(R"(
+    int x;
+  )");
+
+  REQUIRE(result.program.statements.size() == 1);
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+
+  REQUIRE(stmt->declaration->type.datatype == DataType::INT);
+  REQUIRE(stmt->declaration->name == "x");
+
+  REQUIRE(stmt->declaration->initializer == nullptr);
+  REQUIRE_FALSE(stmt->declaration->array_initializer.has_value());
+}
+
+TEST_CASE("Parser parses initialized global variable") {
+  auto result = parse(R"(
+    int x = 42;
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+
+  REQUIRE(stmt->declaration->initializer != nullptr);
+
+  REQUIRE(stmt->declaration->initializer->expr_type() == ExprType::INT_LITERAL);
+}
+
+TEST_CASE("Parser parses global pointer") {
+  auto result = parse(R"(
+    int *ptr;
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+
+  REQUIRE(stmt->declaration->type.pointer_depth == 1);
+}
+
+TEST_CASE("Parser parses global double pointer") {
+  auto result = parse(R"(
+    int **ptr;
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+
+  REQUIRE(stmt->declaration->type.pointer_depth == 2);
+}
+
+TEST_CASE("Parser parses global array") {
+  auto result = parse(R"(
+    int arr[10];
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+
+  REQUIRE(stmt->declaration->type.dimensions == std::vector<size_t>{10});
+}
+
+TEST_CASE("Parser parses multidimensional global array") {
+  auto result = parse(R"(
+    int matrix[3][4];
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+
+  REQUIRE(stmt->declaration->type.dimensions == std::vector<size_t>{3, 4});
+}
+
+TEST_CASE("Parser parses global initialized with binary expression") {
+  auto result = parse(R"(
+    int x = a + b * c;
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+  REQUIRE(stmt->declaration->initializer->expr_type() == ExprType::BINARY);
+}
+
+TEST_CASE("Parser parses global initialized with function call") {
+  auto result = parse(R"(
+    int x = foo(1, 2);
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+  REQUIRE(stmt->declaration->initializer->expr_type() == ExprType::FUNCTION_CALL);
+}
+
+TEST_CASE("Parser parses global initialized with cast") {
+  auto result = parse(R"(
+    int x = (int)foo;
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+
+  REQUIRE(stmt->declaration->initializer->expr_type() == ExprType::CAST);
+}
+
+TEST_CASE("Parser parses global initialized with conditional expression") {
+  auto result = parse(R"(
+    int x = cond ? a : b;
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[0].get());
+
+  REQUIRE(stmt != nullptr);
+  REQUIRE(stmt->declaration->initializer->expr_type() == ExprType::CONDITIONAL);
+}
+
+TEST_CASE("Parser parses global typedef variable") {
+  auto result = parse(R"(
+    typedef int INT;
+
+    INT value;
+  )");
+
+  REQUIRE(result.program.statements.size() == 2);
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[1].get());
+
+  REQUIRE(stmt != nullptr);
+
+  REQUIRE(stmt->declaration->type.datatype == DataType::TYPEDEF_NAME);
+  REQUIRE(stmt->declaration->type.custom_name == "INT");
+
+  REQUIRE(stmt->declaration->name == "value");
+}
+
+TEST_CASE("Parser parses initialized global typedef variable") {
+  auto result = parse(R"(
+    typedef int INT;
+
+    INT value = 10;
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[1].get());
+
+  REQUIRE(stmt != nullptr);
+
+  REQUIRE(stmt->declaration->initializer != nullptr);
+
+  REQUIRE(stmt->declaration->initializer->expr_type() == ExprType::INT_LITERAL);
+}
+
+TEST_CASE("Parser parses global typedef pointer") {
+  auto result = parse(R"(
+    typedef int INT;
+
+    INT *ptr;
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[1].get());
+
+  REQUIRE(stmt != nullptr);
+  REQUIRE(stmt->declaration->type.datatype == DataType::TYPEDEF_NAME);
+  REQUIRE(stmt->declaration->type.pointer_depth == 1);
+}
+
+TEST_CASE("Parser parses global typedef array") {
+  auto result = parse(R"(
+    typedef int INT;
+
+    INT arr[10];
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[1].get());
+
+  REQUIRE(stmt != nullptr);
+  REQUIRE(stmt->declaration->type.dimensions == std::vector<size_t>{10});
+}
+
+TEST_CASE("Parser parses global struct variable") {
+  auto result = parse(R"(
+    struct Point {
+      int x;
+    };
+
+    struct Point p;
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[1].get());
+
+  REQUIRE(stmt != nullptr);
+  REQUIRE(stmt->declaration->type.datatype == DataType::STRUCT);
+  REQUIRE(stmt->declaration->type.custom_name == "Point");
+}
+
+TEST_CASE("Parser parses global struct pointer") {
+  auto result = parse(R"(
+    struct Point {
+      int x;
+    };
+
+    struct Point *ptr;
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[1].get());
+
+  REQUIRE(stmt != nullptr);
+  REQUIRE(stmt->declaration->type.pointer_depth == 1);
+}
+
+TEST_CASE("Parser parses global struct array") {
+  auto result = parse(R"(
+    struct Point {
+      int x;
+    };
+
+    struct Point points[5];
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[1].get());
+
+  REQUIRE(stmt != nullptr);
+  REQUIRE(stmt->declaration->type.dimensions == std::vector<size_t>{5});
+}
+
+TEST_CASE("Parser parses global union variable") {
+  auto result = parse(R"(
+    union Value {
+      int x;
+    };
+
+    union Value value;
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[1].get());
+
+  REQUIRE(stmt != nullptr);
+  REQUIRE(stmt->declaration->type.datatype == DataType::UNION);
+  REQUIRE(stmt->declaration->type.custom_name == "Value");
+}
+
+TEST_CASE("Parser parses global union pointer") {
+  auto result = parse(R"(
+    union Value {
+      int x;
+    };
+
+    union Value *ptr;
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[1].get());
+
+  REQUIRE(stmt != nullptr);
+  REQUIRE(stmt->declaration->type.pointer_depth == 1);
+}
+
+TEST_CASE("Parser parses global enum variable") {
+  auto result = parse(R"(
+    enum Color {
+      RED
+    };
+
+    enum Color color;
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[1].get());
+
+  REQUIRE(stmt != nullptr);
+  REQUIRE(stmt->declaration->type.datatype == DataType::ENUM);
+  REQUIRE(stmt->declaration->type.custom_name == "Color");
+}
+
+TEST_CASE("Parser parses global enum initialized variable") {
+  auto result = parse(R"(
+    enum Color {
+      RED
+    };
+
+    enum Color color = RED;
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[1].get());
+
+  REQUIRE(stmt != nullptr);
+  REQUIRE(stmt->declaration->initializer != nullptr);
+  REQUIRE(stmt->declaration->initializer->expr_type() == ExprType::IDENTIFIER);
+}
+
+TEST_CASE("Parser parses global typedef struct variable") {
+  auto result = parse(R"(
+    typedef struct {
+      int x;
+    } Point;
+
+    Point p;
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[1].get());
+
+  REQUIRE(stmt != nullptr);
+  REQUIRE(stmt->declaration->type.datatype == DataType::TYPEDEF_NAME);
+  REQUIRE(stmt->declaration->type.custom_name == "Point");
+}
+
+TEST_CASE("Parser parses global typedef union variable") {
+  auto result = parse(R"(
+    typedef union {
+      int x;
+    } Value;
+
+    Value v;
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[1].get());
+
+  REQUIRE(stmt != nullptr);
+  REQUIRE(stmt->declaration->type.custom_name == "Value");
+}
+
+TEST_CASE("Parser parses global typedef enum variable") {
+  auto result = parse(R"(
+    typedef enum {
+      RED
+    } Color;
+
+    Color c;
+  )");
+
+  auto *stmt = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[1].get());
+
+  REQUIRE(stmt != nullptr);
+  REQUIRE(stmt->declaration->type.custom_name == "Color");
 }

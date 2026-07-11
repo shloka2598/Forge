@@ -255,6 +255,11 @@ ParsedType Parser::parseDatatype() {
 
       // primitive types
     case TokenType::DATATYPE_VOID: {
+      if (found_base_type) {
+        error("Multiple base types");
+        type.datatype = DataType::INVALID;
+        return type;
+      }
       type.datatype = DataType::VOID;
       found_base_type = true;
       consume();
@@ -262,6 +267,11 @@ ParsedType Parser::parseDatatype() {
     }
 
     case TokenType::DATATYPE_CHAR: {
+      if (found_base_type) {
+        error("Multiple base types");
+        type.datatype = DataType::INVALID;
+        return type;
+      }
       type.datatype = DataType::CHAR;
       found_base_type = true;
       consume();
@@ -269,6 +279,11 @@ ParsedType Parser::parseDatatype() {
     }
 
     case TokenType::DATATYPE_INT: {
+      if (found_base_type) {
+        error("Multiple base types");
+        type.datatype = DataType::INVALID;
+        return type;
+      }
       type.datatype = DataType::INT;
       found_base_type = true;
       consume();
@@ -276,6 +291,11 @@ ParsedType Parser::parseDatatype() {
     }
 
     case TokenType::DATATYPE_FLOAT: {
+      if (found_base_type) {
+        error("Multiple base types");
+        type.datatype = DataType::INVALID;
+        return type;
+      }
       type.datatype = DataType::FLOAT;
       found_base_type = true;
       consume();
@@ -283,6 +303,11 @@ ParsedType Parser::parseDatatype() {
     }
 
     case TokenType::DATATYPE_DOUBLE: {
+      if (found_base_type) {
+        error("Multiple base types");
+        type.datatype = DataType::INVALID;
+        return type;
+      }
       type.datatype = DataType::DOUBLE;
       found_base_type = true;
       consume();
@@ -292,6 +317,11 @@ ParsedType Parser::parseDatatype() {
       // user defined types
     case TokenType::STRUCT: {
       consume();
+      if (found_base_type) {
+        error("Multiple base types");
+        type.datatype = DataType::INVALID;
+        return type;
+      }
       type.datatype = DataType::STRUCT;
 
       if (peek() && peek()->tokentype == TokenType::IDENTIFIER) {
@@ -313,6 +343,11 @@ ParsedType Parser::parseDatatype() {
 
     case TokenType::UNION: {
       consume();
+      if (found_base_type) {
+        error("Multiple base types");
+        type.datatype = DataType::INVALID;
+        return type;
+      }
       type.datatype = DataType::UNION;
 
       if (peek() && peek()->tokentype == TokenType::IDENTIFIER) {
@@ -333,6 +368,11 @@ ParsedType Parser::parseDatatype() {
 
     case TokenType::ENUM: {
       consume();
+      if (found_base_type) {
+        error("Multiple base types");
+        type.datatype = DataType::INVALID;
+        return type;
+      }
       type.datatype = DataType::ENUM;
 
       if (peek() && peek()->tokentype == TokenType::IDENTIFIER) {
@@ -352,11 +392,15 @@ ParsedType Parser::parseDatatype() {
     }
 
     case TokenType::IDENTIFIER: {
-
       if (!typedef_names.contains(peek()->value.value())) {
         goto done;
       }
 
+      if (found_base_type) {
+        error("Multiple base types");
+        type.datatype = DataType::INVALID;
+        return type;
+      }
       type.datatype = DataType::TYPEDEF_NAME;
       type.custom_name = consume()->value.value();
       found_base_type = true;
@@ -366,9 +410,6 @@ ParsedType Parser::parseDatatype() {
     default:
       goto done;
     }
-
-    if (found_base_type)
-      break;
   }
 
 done:
