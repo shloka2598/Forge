@@ -9,7 +9,7 @@ std::unique_ptr<ReturnStmt> Parser::parseReturnStmt() {
   std::unique_ptr<Expr> expr = parseExpr();
 
   if (!expr) {
-    error("Expected expression after return");
+    error("Expected an expression after 'return'.", peek());
     return nullptr;
   }
 
@@ -21,7 +21,6 @@ std::unique_ptr<ReturnStmt> Parser::parseReturnStmt() {
 }
 
 std::unique_ptr<VariableDeclarationStmt> Parser::parseVariableDeclarationStmt() {
-
   ParsedType type = parseDatatype();
 
   if (type.datatype == DataType::INVALID) {
@@ -43,7 +42,7 @@ std::unique_ptr<VariableDeclarationStmt> Parser::parseVariableDeclarationStmt() 
   parsePointerSuffix(type);
 
   if (!peek() || peek()->tokentype != TokenType::IDENTIFIER) {
-    error("Expected identifier");
+    error("Expected a variable name.", peek());
     return nullptr;
   }
 
@@ -54,6 +53,12 @@ std::unique_ptr<VariableDeclarationStmt> Parser::parseVariableDeclarationStmt() 
     size_t size = 0;
     if (peek() && peek()->tokentype == TokenType::INT_LET) {
       size = std::stoull(consume()->value.value());
+    } else if (!peek()) {
+      error("Expected an integer array size before end of file.", std::nullopt);
+      return nullptr;
+    } else if (peek() && peek()->tokentype != TokenType::SQUARE_BRACKETS_CLOSE) {
+      error("Expected an integer array size.", peek());
+      return nullptr;
     }
     type.dimensions.push_back(size);
     if (!match(TokenType::SQUARE_BRACKETS_CLOSE)) {
@@ -66,13 +71,13 @@ std::unique_ptr<VariableDeclarationStmt> Parser::parseVariableDeclarationStmt() 
   std::optional<ArrayInitializer> array_initializer;
 
   if (peek() && peek()->tokentype == TokenType::EQUALS) {
-    consume(); // =
+    auto tok = consume(); // =
     if (!type.dimensions.empty() && peek() && peek()->tokentype == TokenType::BRACES_OPEN) {
       array_initializer = parseArrayInitializer();
     } else {
       expr_ptr = parseExpr();
       if (!expr_ptr) {
-        error("Expected initializer expression");
+        error("Expected an initializer expression after '='.", tok);
         return nullptr;
       }
     }
@@ -89,7 +94,6 @@ std::unique_ptr<ExpressionStmt> Parser::parseExpressionStmt() {
   std::unique_ptr<Expr> expr = parseExpr();
 
   if (!expr) {
-    error("Expected expression");
     return nullptr;
   }
 
@@ -179,7 +183,7 @@ std::unique_ptr<Stmt> Parser::parse_stmt() {
     return std::make_unique<EmptyStmt>();
   }
 
-  error("Unknown statement");
+  error("Expected a statement.", peek());
   return nullptr;
 }
 
@@ -259,7 +263,7 @@ std::unique_ptr<Stmt> Parser::parseTypedefDeclarationStmt() {
   parsePointerSuffix(type);
 
   if (!peek() || peek()->tokentype != TokenType::IDENTIFIER) {
-    error("Expected typedef name");
+    error("Expected a typedef name.", peek());
     return nullptr;
   }
 
@@ -270,6 +274,12 @@ std::unique_ptr<Stmt> Parser::parseTypedefDeclarationStmt() {
     size_t size = 0;
     if (peek() && peek()->tokentype == TokenType::INT_LET) {
       size = std::stoull(consume()->value.value());
+    } else if (!peek()) {
+      error("Expected an integer array size before end of file.", std::nullopt);
+      return nullptr;
+    } else if (peek()->tokentype != TokenType::SQUARE_BRACKETS_CLOSE) {
+      error("Expected an integer array size.", peek());
+      return nullptr;
     }
     type.dimensions.push_back(size);
     if (!match(TokenType::SQUARE_BRACKETS_CLOSE)) {
@@ -278,7 +288,7 @@ std::unique_ptr<Stmt> Parser::parseTypedefDeclarationStmt() {
   }
 
   if (peek() && peek()->tokentype == TokenType::EQUALS) {
-    error("typedef cannot have an initializer");
+    error("A typedef declaration cannot have an initializer.", peek());
     return nullptr;
   }
 

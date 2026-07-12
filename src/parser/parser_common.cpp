@@ -16,7 +16,6 @@ std::optional<Token> Parser::consume() {
 }
 
 bool Parser::isAssignable(const Expr *expr) const {
-
   if (dynamic_cast<const IdentifierExpr *>(expr))
     return true;
 
@@ -34,13 +33,12 @@ bool Parser::isAssignable(const Expr *expr) const {
 
 bool Parser::match(TokenType expected) {
   if (!peek().has_value()) {
-    error("Unexpected end of file");
+    error("Unexpected end of file while parsing", std::nullopt);
     return false;
   }
 
   if (peek()->tokentype != expected) {
-    std::cerr << "Parser Error: Expected " << expected << ", got " << peek()->tokentype << " at parser index " << _index << "\n";
-    has_error = true;
+    error("Expected " + std::string(token_name(expected)), peek());
     return false;
   }
 
@@ -48,9 +46,13 @@ bool Parser::match(TokenType expected) {
   return true;
 }
 
-void Parser::error(const std::string &msg) {
+void Parser::error(const std::string &msg, std::optional<Token> token) {
   has_error = true;
-  std::cerr << "Parser Error: " << msg << '\n';
+  if (token.has_value()) {
+    diagnostics.error(msg, token->line, token->column, token->length);
+  } else {
+    diagnostics.error(msg, 0, 0, 0);
+  }
 }
 
 bool Parser::isDatatype(TokenType token) const {
@@ -100,7 +102,7 @@ ParsedType Parser::parseDatatype() {
       constexpr auto flag = static_cast<uint8_t>(TypeQualifier::CONST);
 
       if (type.qualifiers & flag) {
-        error("Duplicate const qualifier");
+        error("Duplicate 'const' qualifier.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -114,7 +116,7 @@ ParsedType Parser::parseDatatype() {
       constexpr auto flag = static_cast<uint8_t>(TypeQualifier::VOLATILE);
 
       if (type.qualifiers & flag) {
-        error("Duplicate volatile qualifier");
+        error("Duplicate 'volatile' qualifier.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -128,7 +130,7 @@ ParsedType Parser::parseDatatype() {
       constexpr auto flag = static_cast<uint8_t>(TypeQualifier::RESTRICT);
 
       if (type.qualifiers & flag) {
-        error("Duplicate restrict qualifier");
+        error("Duplicate 'restrict' qualifier.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -141,7 +143,7 @@ ParsedType Parser::parseDatatype() {
       // storage classes
     case TokenType::STATIC: {
       if (type.storage != StorageClass::NONE) {
-        error("Multiple storage class specifiers");
+        error("Multiple storage class specifiers are not allowed.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -152,7 +154,7 @@ ParsedType Parser::parseDatatype() {
 
     case TokenType::EXTERN: {
       if (type.storage != StorageClass::NONE) {
-        error("Multiple storage class specifiers");
+        error("Multiple storage class specifiers are not allowed.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -163,7 +165,7 @@ ParsedType Parser::parseDatatype() {
 
     case TokenType::REGISTER: {
       if (type.storage != StorageClass::NONE) {
-        error("Multiple storage class specifiers");
+        error("Multiple storage class specifiers are not allowed.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -174,7 +176,7 @@ ParsedType Parser::parseDatatype() {
 
     case TokenType::AUTO: {
       if (type.storage != StorageClass::NONE) {
-        error("Multiple storage class specifiers");
+        error("Multiple storage class specifiers are not allowed.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -185,7 +187,7 @@ ParsedType Parser::parseDatatype() {
 
     case TokenType::TYPEDEF: {
       if (type.storage != StorageClass::NONE) {
-        error("Multiple storage class specifiers");
+        error("Multiple storage class specifiers are not allowed.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -197,7 +199,7 @@ ParsedType Parser::parseDatatype() {
       // function specifier
     case TokenType::INLINE: {
       if (type.function_specifier != FunctionSpecifier::NONE) {
-        error("Duplicate function specifier");
+        error("Duplicate 'inline' specifier.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -210,7 +212,7 @@ ParsedType Parser::parseDatatype() {
       // int mods
     case TokenType::SIGNED: {
       if (is_signed) {
-        error("Duplicate signed specifier");
+        error("Duplicate 'signed' specifier.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -221,7 +223,7 @@ ParsedType Parser::parseDatatype() {
 
     case TokenType::UNSIGNED: {
       if (is_unsigned) {
-        error("Duplicate unsigned specifier");
+        error("Duplicate 'unsigned' specifier.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -233,7 +235,7 @@ ParsedType Parser::parseDatatype() {
 
     case TokenType::SHORT: {
       if (is_short) {
-        error("Duplicate short specifier");
+        error("Duplicate 'short' specifier.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -245,7 +247,7 @@ ParsedType Parser::parseDatatype() {
     case TokenType::LONG: {
       long_count++;
       if (long_count > 2) {
-        error("Too many long specifiers");
+        error("Too many 'long' specifiers.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -256,7 +258,7 @@ ParsedType Parser::parseDatatype() {
       // primitive types
     case TokenType::DATATYPE_VOID: {
       if (found_base_type) {
-        error("Multiple base types");
+        error("Multiple base types specified.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -268,7 +270,7 @@ ParsedType Parser::parseDatatype() {
 
     case TokenType::DATATYPE_CHAR: {
       if (found_base_type) {
-        error("Multiple base types");
+        error("Multiple base types specified.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -280,7 +282,7 @@ ParsedType Parser::parseDatatype() {
 
     case TokenType::DATATYPE_INT: {
       if (found_base_type) {
-        error("Multiple base types");
+        error("Multiple base types specified.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -292,7 +294,7 @@ ParsedType Parser::parseDatatype() {
 
     case TokenType::DATATYPE_FLOAT: {
       if (found_base_type) {
-        error("Multiple base types");
+        error("Multiple base types specified.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -304,7 +306,7 @@ ParsedType Parser::parseDatatype() {
 
     case TokenType::DATATYPE_DOUBLE: {
       if (found_base_type) {
-        error("Multiple base types");
+        error("Multiple base types specified.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -318,7 +320,7 @@ ParsedType Parser::parseDatatype() {
     case TokenType::STRUCT: {
       consume();
       if (found_base_type) {
-        error("Multiple base types");
+        error("Multiple base types specified.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -344,7 +346,7 @@ ParsedType Parser::parseDatatype() {
     case TokenType::UNION: {
       consume();
       if (found_base_type) {
-        error("Multiple base types");
+        error("Multiple base types specified.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -369,7 +371,7 @@ ParsedType Parser::parseDatatype() {
     case TokenType::ENUM: {
       consume();
       if (found_base_type) {
-        error("Multiple base types");
+        error("Multiple base types specified.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -397,7 +399,7 @@ ParsedType Parser::parseDatatype() {
       }
 
       if (found_base_type) {
-        error("Multiple base types");
+        error("Multiple base types specified.", peek());
         type.datatype = DataType::INVALID;
         return type;
       }
@@ -420,20 +422,20 @@ done:
   }
 
   if (!found_base_type) {
-    error("Expected datatype");
+    error("Expected a datatype.", peek());
     type.datatype = DataType::INVALID;
     return type;
   }
 
   // validating int mods
   if (is_signed && is_unsigned) {
-    error("Type cannot be both signed and unsigned");
+    error("Type cannot be both 'signed' and 'unsigned'.", peek());
     type.datatype = DataType::INVALID;
     return type;
   }
 
   if (is_short && long_count > 0) {
-    error("Type cannot be both short and long");
+    error("Type cannot be both 'short' and 'long'.", peek());
     type.datatype = DataType::INVALID;
     return type;
   }
@@ -454,12 +456,12 @@ done:
   }
   case DataType::CHAR: {
     if (is_short || long_count) {
-      error("Illegal modifiers for char");
+      error("Illegal type modifiers for 'char'.", peek());
       type.datatype = DataType::INVALID;
       return type;
     }
     if (is_signed) {
-      error("signed char is not yet supported");
+      error("'signed char' is not supported yet.", peek());
       type.datatype = DataType::INVALID;
       return type;
     }
@@ -472,7 +474,7 @@ done:
   }
   case DataType::FLOAT: {
     if (is_signed || is_unsigned || is_short || long_count) {
-      error("Illegal modifiers for float");
+      error("Illegal modifiers for 'float'.", peek());
       type.datatype = DataType::INVALID;
       return type;
     }
@@ -480,14 +482,14 @@ done:
   }
   case DataType::DOUBLE: {
     if (is_signed || is_unsigned || is_short) {
-      error("Illegal modifiers for double");
+      error("Illegal modifiers for 'double'.", peek());
       type.datatype = DataType::INVALID;
       return type;
     }
     if (long_count == 1) {
       type.datatype = DataType::LONGDOUBLE;
     } else if (long_count > 1) {
-      error("long long double is illegal");
+      error("'long long double' is not a valid type specifier.", peek());
       type.datatype = DataType::INVALID;
       return type;
     }
@@ -495,7 +497,7 @@ done:
   }
   case DataType::VOID: {
     if (is_signed || is_unsigned || is_short || long_count) {
-      error("Illegal modifiers for void");
+      error("Illegal modifiers for 'void'.", peek());
       type.datatype = DataType::INVALID;
       return type;
     }
@@ -503,7 +505,7 @@ done:
   }
   case DataType::STRUCT: {
     if (is_signed || is_unsigned || is_short || long_count) {
-      error("Illegal modifiers for struct");
+      error("Illegal modifiers for 'struct'.", peek());
       type.datatype = DataType::INVALID;
       return type;
     }
@@ -511,7 +513,7 @@ done:
   }
   case DataType::UNION: {
     if (is_signed || is_unsigned || is_short || long_count) {
-      error("Illegal modifiers for union");
+      error("Illegal modifiers for 'union'.", peek());
       type.datatype = DataType::INVALID;
       return type;
     }
@@ -520,7 +522,7 @@ done:
 
   case DataType::ENUM: {
     if (is_signed || is_unsigned || is_short || long_count) {
-      error("Illegal modifiers for enum");
+      error("Illegal modifiers for 'enum'.", peek());
       type.datatype = DataType::INVALID;
       return type;
     }

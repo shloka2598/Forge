@@ -1,9 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include <algorithm>
-#include <filesystem>
-#include <fstream>
-
 #include "parser/parser.h"
 #include "test_utils.h"
 
@@ -23,7 +19,7 @@ ParserResult parse(std::string_view source) {
   Lexer lexer{std::string{source}, result.diagnostics};
   auto tokens = lexer.tokenize();
 
-  Parser parser{tokens, result.program};
+  Parser parser{tokens, result.program, result.diagnostics};
   parser.parse();
 
   return result;

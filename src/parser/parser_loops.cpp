@@ -1,13 +1,13 @@
 #include "parser.h"
 
 std::unique_ptr<IfStmt> Parser::parseIfStmt() {
-  consume(); // if
+  auto tok = consume(); // if
   if (!match(TokenType::PARENTHESIS_OPEN)) {
     return nullptr;
   }
   std::unique_ptr<Expr> condition = parseExpr();
   if (!condition) {
-    error("Expected if condition");
+    error("Expected a condition expression after 'if'.", tok);
     return nullptr;
   }
   if (!match(TokenType::PARENTHESIS_CLOSE)) {
@@ -35,13 +35,14 @@ std::unique_ptr<IfStmt> Parser::parseIfStmt() {
 }
 
 std::unique_ptr<WhileStmt> Parser::parseWhileStmt() {
-  consume(); // while
+  auto tok = consume(); // while
   if (!match(TokenType::PARENTHESIS_OPEN)) {
     return nullptr;
   }
   auto condition = parseExpr();
   if (!condition) {
-    error("Expected while condition");
+    error("Expected a condition expression after 'while'.", tok);
+
     return nullptr;
   }
   if (!match(TokenType::PARENTHESIS_CLOSE)) {
@@ -51,7 +52,6 @@ std::unique_ptr<WhileStmt> Parser::parseWhileStmt() {
   auto body = parseStatementOrBlock();
 
   if (!body) {
-    error("Cannot parse while body");
     return nullptr;
   }
 
@@ -62,7 +62,6 @@ std::unique_ptr<DoWhileStmt> Parser::parseDoWhileStmt() {
   consume(); // do
   auto body = parseStatementOrBlock();
   if (!body) {
-    error("Cannot parse while body");
     return nullptr;
   }
   if (!match(TokenType::WHILE)) {
@@ -73,7 +72,7 @@ std::unique_ptr<DoWhileStmt> Parser::parseDoWhileStmt() {
   }
   auto condition = parseExpr();
   if (!condition) {
-    error("Expected do-while condition");
+    error("Expected a condition expression after 'while'.", peek());
     return nullptr;
   }
   if (!match(TokenType::PARENTHESIS_CLOSE)) {
@@ -86,13 +85,13 @@ std::unique_ptr<DoWhileStmt> Parser::parseDoWhileStmt() {
 }
 
 std::unique_ptr<SwitchStmt> Parser::parseSwitchStmt() {
-  consume(); // switch
+  auto tok = consume(); // switch
   if (!match(TokenType::PARENTHESIS_OPEN)) {
     return nullptr;
   }
   auto condition = parseExpr();
   if (!condition) {
-    error("Expected switch condition");
+    error("Expected a condition expression after 'switch'.", tok);
     return nullptr;
   }
   if (!match(TokenType::PARENTHESIS_CLOSE)) {
@@ -106,10 +105,10 @@ std::unique_ptr<SwitchStmt> Parser::parseSwitchStmt() {
   bool seen_default = false;
   while (peek() && peek()->tokentype != TokenType::BRACES_CLOSE) {
     if (peek()->tokentype == TokenType::CASE) {
-      consume(); // case
+      auto tok = consume(); // case
       auto case_value = parseExpr();
       if (!case_value) {
-        error("Expected case value");
+        error("Expected a case expression after 'case'.", tok);
         return nullptr;
       }
       if (!match(TokenType::COLON)) {
@@ -120,7 +119,6 @@ std::unique_ptr<SwitchStmt> Parser::parseSwitchStmt() {
         auto stmt = parse_stmt();
 
         if (!stmt) {
-          error("Invalid statement inside case");
           return nullptr;
         }
 
@@ -129,7 +127,7 @@ std::unique_ptr<SwitchStmt> Parser::parseSwitchStmt() {
       cases.emplace_back(std::move(case_value), std::move(case_body));
     } else if (peek()->tokentype == TokenType::DEFAULT) {
       if (seen_default) {
-        error("Multiple default labels");
+        error("Multiple 'default' labels are not allowed.", peek());
         return nullptr;
       }
       seen_default = true;
@@ -141,13 +139,12 @@ std::unique_ptr<SwitchStmt> Parser::parseSwitchStmt() {
       while (peek() && peek()->tokentype != TokenType::CASE && peek()->tokentype != TokenType::DEFAULT && peek()->tokentype != TokenType::BRACES_CLOSE) {
         auto stmt = parse_stmt();
         if (!stmt) {
-          error("Invalid statement inside default");
           return nullptr;
         }
         default_body->statements.push_back(std::move(stmt));
       }
     } else {
-      error("Expected case or default");
+      error("Expected 'case' or 'default' label.", peek());
       return nullptr;
     }
   }
@@ -161,7 +158,7 @@ std::unique_ptr<SwitchStmt> Parser::parseSwitchStmt() {
 
 std::unique_ptr<Stmt> Parser::parseForInitStmt() {
   if (!peek()) {
-    error("Expected for-loop initializer");
+    error("Expected a for-loop initializer.", std::nullopt);
     return nullptr;
   }
   // Variable declaration
@@ -175,7 +172,7 @@ std::unique_ptr<Stmt> Parser::parseForInitStmt() {
     parsePointerSuffix(type);
 
     if (!peek() || peek()->tokentype != TokenType::IDENTIFIER) {
-      error("Expected identifier");
+      error("Expected a variable name.", peek());
       return nullptr;
     }
     std::string var_name = consume()->value.value();
@@ -185,6 +182,12 @@ std::unique_ptr<Stmt> Parser::parseForInitStmt() {
       size_t size = 0;
       if (peek() && peek()->tokentype == TokenType::INT_LET) {
         size = std::stoull(consume()->value.value());
+      } else if (!peek()) {
+        error("Expected an integer array size before end of file.", std::nullopt);
+        return nullptr;
+      } else if (peek()->tokentype != TokenType::SQUARE_BRACKETS_CLOSE) {
+        error("Expected an integer array size.", peek());
+        return nullptr;
       }
       type.dimensions.push_back(size);
       if (!match(TokenType::SQUARE_BRACKETS_CLOSE)) {
@@ -196,13 +199,13 @@ std::unique_ptr<Stmt> Parser::parseForInitStmt() {
     std::optional<ArrayInitializer> array_initializer;
 
     if (peek() && peek()->tokentype == TokenType::EQUALS) {
-      consume();
+      auto tok = consume();
       if (!type.dimensions.empty() && peek() && peek()->tokentype == TokenType::BRACES_OPEN) {
         array_initializer = parseArrayInitializer();
       } else {
         expr_ptr = parseExpr();
         if (!expr_ptr) {
-          error("Expected initializer expression");
+          error("Expected an initializer expression after '='.", tok);
           return nullptr;
         }
       }
@@ -214,7 +217,6 @@ std::unique_ptr<Stmt> Parser::parseForInitStmt() {
   auto expr = parseExpr();
 
   if (!expr) {
-    error("Invalid for-loop initializer");
     return nullptr;
   }
 
@@ -223,13 +225,12 @@ std::unique_ptr<Stmt> Parser::parseForInitStmt() {
 
 std::unique_ptr<Stmt> Parser::parseForUpdateStmt() {
   if (!peek()) {
-    error("Expected for-loop update");
+    error("Expected a for-loop update expression.", std::nullopt);
     return nullptr;
   }
-  // assignment
+
   auto expr = parseExpr();
   if (!expr) {
-    error("Expected update expression");
     return nullptr;
   }
 
@@ -245,7 +246,6 @@ std::unique_ptr<ForStmt> Parser::parseForStmt() {
   if (peek() && peek()->tokentype != TokenType::SEMI_COLON) {
     init_stmt = parseForInitStmt();
     if (!init_stmt) {
-      error("Expected for-loop initializer");
       return nullptr;
     }
   }
@@ -256,7 +256,6 @@ std::unique_ptr<ForStmt> Parser::parseForStmt() {
   if (peek() && peek()->tokentype != TokenType::SEMI_COLON) {
     condition = parseExpr();
     if (!condition) {
-      error("Expected for-loop condition");
       return nullptr;
     }
   }
@@ -267,7 +266,6 @@ std::unique_ptr<ForStmt> Parser::parseForStmt() {
   if (peek() && peek()->tokentype != TokenType::PARENTHESIS_CLOSE) {
     update_stmt = parseForUpdateStmt();
     if (!update_stmt) {
-      error("Expected for-loop update statement");
       return nullptr;
     }
   }
@@ -278,7 +276,6 @@ std::unique_ptr<ForStmt> Parser::parseForStmt() {
   auto body = parseStatementOrBlock();
 
   if (!body) {
-    error("Cannot parse for-loop body");
     return nullptr;
   }
 

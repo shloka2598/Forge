@@ -5,7 +5,7 @@ std::optional<std::vector<Parameter>> Parser::parseParameters() {
 
   while (peek() && peek()->tokentype != TokenType::PARENTHESIS_CLOSE) {
     if (!isDatatype(peek()->tokentype) && !isTypedefName()) {
-      error("Expected datatype");
+      error("Expected a parameter datatype.", peek());
       return std::nullopt;
     }
 
@@ -45,6 +45,12 @@ std::optional<std::vector<Parameter>> Parser::parseParameters() {
       size_t size = 0;
       if (peek() && peek()->tokentype == TokenType::INT_LET) {
         size = std::stoull(consume()->value.value());
+      } else if (!peek()) {
+        error("Expected an integer array size before end of file.", std::nullopt);
+        return std::nullopt;
+      } else if (peek()->tokentype != TokenType::SQUARE_BRACKETS_CLOSE) {
+        error("Expected an integer array size.", peek());
+        return std::nullopt;
       }
       type.dimensions.push_back(size);
       if (!match(TokenType::SQUARE_BRACKETS_CLOSE)) {
@@ -63,10 +69,14 @@ std::optional<std::vector<Parameter>> Parser::parseParameters() {
 
 std::unique_ptr<FunctionDecl> Parser::parseFunction() {
   if (!peek() || (!isDatatype(peek()->tokentype) && !isTypedefName())) {
-    error("Expected datatype");
+    error("Expected a function return type.", peek());
     return nullptr;
   }
   ParsedType return_type = parseDatatype();
+
+  if (return_type.datatype == DataType::INVALID) {
+    return nullptr;
+  }
 
   if (pending_struct) {
     program.statements.push_back(std::make_unique<StructDeclarationStmt>(std::move(pending_struct)));
@@ -80,14 +90,10 @@ std::unique_ptr<FunctionDecl> Parser::parseFunction() {
     program.statements.push_back(std::make_unique<EnumDeclarationStmt>(std::move(pending_enum)));
   }
 
-  if (return_type.datatype == DataType::INVALID) {
-    return nullptr;
-  }
-
   parsePointerSuffix(return_type);
 
   if (!peek() || peek()->tokentype != TokenType::IDENTIFIER) {
-    error("Expected function name");
+    error("Expected a function name.", peek());
     return nullptr;
   }
 

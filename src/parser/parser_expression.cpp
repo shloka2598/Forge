@@ -1,8 +1,9 @@
 #include "parser.h"
+#include <cassert>
 
 std::unique_ptr<Expr> Parser::parsePrimary() {
   if (!peek()) {
-    error("Expected primary expression");
+    error("Expected a primary expression before end of file.", std::nullopt);
     return nullptr;
   }
 
@@ -10,50 +11,26 @@ std::unique_ptr<Expr> Parser::parsePrimary() {
 
   if (tok == TokenType::INT_LET) {
     auto token = consume();
-    if (!token) {
-      error("Expected integer literal");
-      return nullptr;
-    }
     return std::make_unique<IntLetExpr>(std::stoull(token->value.value(), nullptr, 0));
   }
   if (tok == TokenType::DOUBLE_LET) {
     auto token = consume();
-    if (!token) {
-      error("Expected double literal");
-      return nullptr;
-    }
     return std::make_unique<DoubleLetExpr>(std::stod(token->value.value()));
   }
   if (tok == TokenType::FLOAT_LET) {
     auto token = consume();
-    if (!token) {
-      error("Expected float literal");
-      return nullptr;
-    }
     return std::make_unique<FloatLetExpr>(std::stof(token->value.value()));
   }
   if (tok == TokenType::CHAR_LET) {
     auto token = consume();
-    if (!token) {
-      error("Expected char literal");
-      return nullptr;
-    }
     return std::make_unique<CharLetExpr>(token->value.value()[0]);
   }
   if (tok == TokenType::STRING_LET) {
     auto token = consume();
-    if (!token) {
-      error("Expected string literal");
-      return nullptr;
-    }
     return std::make_unique<StringLiteralExpr>(token->value.value());
   }
   if (tok == TokenType::IDENTIFIER) {
     auto token = consume();
-    if (!token) {
-      error("Expected identifier");
-      return nullptr;
-    }
     return std::make_unique<IdentifierExpr>(token->value.value());
   }
   if (tok == TokenType::PARENTHESIS_OPEN) {
@@ -68,40 +45,40 @@ std::unique_ptr<Expr> Parser::parsePrimary() {
     return expr;
   }
 
-  error("Expected primary expression");
+  error("Expected a primary expression.", peek());
   return nullptr;
 }
 
 std::unique_ptr<Expr> Parser::parseUnaryAndCasting() {
   if (!peek()) {
-    error("Expected expression");
+    error("Expected an expression before end of file.", std::nullopt);
     return nullptr;
   }
   TokenType tok = peek()->tokentype;
 
   if (tok == TokenType::PLUS_PLUS) {
-    consume();
+    auto op = consume();
     auto expr = parseUnaryAndCasting();
     if (!expr) {
-      error("Expected expression after ++");
+      error("Expected an expression after '++'.", op);
       return nullptr;
     }
     if (!isAssignable(expr.get())) {
-      error("Operand of ++ must be assignable");
+      error("Operand of '++' must be assignable.", peek());
       return nullptr;
     }
     return std::make_unique<IncrementExpr>(true, true, std::move(expr));
   }
 
   if (tok == TokenType::MINUS_MINUS) {
-    consume();
+    auto op = consume();
     auto expr = parseUnaryAndCasting();
     if (!expr) {
-      error("Expected expression after --");
+      error("Expected an expression after '--'.", op);
       return nullptr;
     }
     if (!isAssignable(expr.get())) {
-      error("Operand of -- must be assignable");
+      error("Operand of '--' must be assignable.", peek());
       return nullptr;
     }
     return std::make_unique<IncrementExpr>(true, false, std::move(expr));
@@ -119,7 +96,7 @@ std::unique_ptr<Expr> Parser::parseUnaryAndCasting() {
 
   // sizeof
   if (tok == TokenType::SIZEOF) {
-    consume();
+    auto op = consume();
     // sizeof(type)
     if (isCastExpression()) {
       consume(); // (
@@ -140,7 +117,7 @@ std::unique_ptr<Expr> Parser::parseUnaryAndCasting() {
     auto expr = parseUnaryAndCasting();
 
     if (!expr) {
-      error("Expected expression after sizeof");
+      error("Expected an expression after 'sizeof'.", op);
       return nullptr;
     }
 
@@ -191,7 +168,7 @@ std::unique_ptr<Expr> Parser::parsePostfix() {
       // only identifiers can be called
       auto *id = dynamic_cast<IdentifierExpr *>(expr.get());
       if (!id) {
-        error("Expected function name");
+        error("Expected an identifier before '('.", peek());
         return nullptr;
       }
       expr = std::make_unique<FunctionCallExpr>(id->identifier_name, std::move(args));
@@ -203,7 +180,6 @@ std::unique_ptr<Expr> Parser::parsePostfix() {
       consume(); // [
       auto index_expr = parseExpr();
       if (!index_expr) {
-        error("Expected index expression");
         return nullptr;
       }
       if (!match(TokenType::SQUARE_BRACKETS_CLOSE)) {
@@ -217,7 +193,7 @@ std::unique_ptr<Expr> Parser::parsePostfix() {
     if (peek()->tokentype == TokenType::DOT) {
       consume(); // .
       if (!peek() || peek()->tokentype != TokenType::IDENTIFIER) {
-        error("Expected member name after '.'");
+        error("Expected a member name after '.'.", peek());
         return nullptr;
       }
 
@@ -230,7 +206,7 @@ std::unique_ptr<Expr> Parser::parsePostfix() {
     if (peek()->tokentype == TokenType::ARROW) {
       consume(); // ->
       if (!peek() || peek()->tokentype != TokenType::IDENTIFIER) {
-        error("Expected member name after '->'");
+        error("Expected a member name after '->'.", peek());
         return nullptr;
       }
 
@@ -245,7 +221,7 @@ std::unique_ptr<Expr> Parser::parsePostfix() {
       consume();
 
       if (!isAssignable(expr.get())) {
-        error("Operand of ++ must be assignable");
+        error("Operand of postfix '++' must be assignable.", peek());
         return nullptr;
       }
 
@@ -257,7 +233,7 @@ std::unique_ptr<Expr> Parser::parsePostfix() {
     if (peek()->tokentype == TokenType::MINUS_MINUS) {
       consume();
       if (!isAssignable(expr.get())) {
-        error("Operand of -- must be assignable");
+        error("Operand of postfix '--' must be assignable.", peek());
         return nullptr;
       }
       expr = std::make_unique<IncrementExpr>(false, false, std::move(expr));
@@ -284,7 +260,6 @@ std::unique_ptr<Expr> Parser::parseMultiplicationAndDivision() {
     std::unique_ptr<Expr> right_expr = parseUnaryAndCasting();
 
     if (!right_expr) {
-      error("Expected expression after operator");
       return nullptr;
     }
 
@@ -307,7 +282,6 @@ std::unique_ptr<Expr> Parser::parseAdditionAndSubtraction() {
     std::unique_ptr<Expr> right_expr = parseMultiplicationAndDivision();
 
     if (!right_expr) {
-      error("Expected expression after operator");
       return nullptr;
     }
 
@@ -328,7 +302,6 @@ std::unique_ptr<Expr> Parser::parseShift() {
     auto right = parseAdditionAndSubtraction();
 
     if (!right) {
-      error("Expected expression after shift operator");
       return nullptr;
     }
 
@@ -352,7 +325,6 @@ std::unique_ptr<Expr> Parser::parseRelational() {
     std::unique_ptr<Expr> right_expr = parseShift();
 
     if (!right_expr) {
-      error("Expected expression after comparison operator");
       return nullptr;
     }
 
@@ -372,7 +344,6 @@ std::unique_ptr<Expr> Parser::parseEquality() {
     TokenType op = consume()->tokentype;
     auto right = parseRelational();
     if (!right) {
-      error("Expected expression after equality operator");
       return nullptr;
     }
     left = std::make_unique<BinaryExpr>(std::move(left), op, std::move(right));
@@ -391,7 +362,6 @@ std::unique_ptr<Expr> Parser::parseBitwiseAnd() {
     TokenType op = consume()->tokentype;
     auto right = parseEquality();
     if (!right) {
-      error("Expected expression");
       return nullptr;
     }
     left = std::make_unique<BinaryExpr>(std::move(left), op, std::move(right));
@@ -410,7 +380,6 @@ std::unique_ptr<Expr> Parser::parseBitwiseXor() {
     TokenType op = consume()->tokentype;
     auto right = parseBitwiseAnd();
     if (!right) {
-      error("Expected expression");
       return nullptr;
     }
     left = std::make_unique<BinaryExpr>(std::move(left), op, std::move(right));
@@ -429,7 +398,6 @@ std::unique_ptr<Expr> Parser::parseBitwiseOr() {
     TokenType op = consume()->tokentype;
     auto right = parseBitwiseXor();
     if (!right) {
-      error("Expected expression");
       return nullptr;
     }
     left = std::make_unique<BinaryExpr>(std::move(left), op, std::move(right));
@@ -451,7 +419,6 @@ std::unique_ptr<Expr> Parser::parseLogicalAnd() {
     std::unique_ptr<Expr> right_expr = parseBitwiseOr();
 
     if (!right_expr) {
-      error("Expected expression after &&");
       return nullptr;
     }
 
@@ -474,7 +441,6 @@ std::unique_ptr<Expr> Parser::parseLogicalOr() {
     std::unique_ptr<Expr> right_expr = parseLogicalAnd();
 
     if (!right_expr) {
-      error("Expected expression after ||");
       return nullptr;
     }
 
@@ -495,7 +461,7 @@ std::unique_ptr<Expr> Parser::parseConditional() {
     auto true_expr = parseAssignment();
 
     if (!true_expr) {
-      error("Expected expression after ?");
+      error("Expected an expression after '?'.", peek());
       return nullptr;
     }
 
@@ -505,7 +471,7 @@ std::unique_ptr<Expr> Parser::parseConditional() {
 
     auto false_expr = parseAssignment();
     if (!false_expr) {
-      error("Expected expression after :");
+      error("Expected an expression after ':'.", peek());
       return nullptr;
     }
 
@@ -523,13 +489,13 @@ std::unique_ptr<Expr> Parser::parseAssignment() {
   }
   if (peek() && peek()->tokentype == TokenType::EQUALS) {
     if (!isAssignable(lhs.get())) {
-      error("Invalid assignment target");
+      error("Left-hand side of assignment must be assignable.", peek());
       return nullptr;
     }
     consume(); // =
     auto rhs = parseAssignment();
     if (!rhs) {
-      error("Expected expression after =");
+      error("Expected an expression after '='.", peek());
       return nullptr;
     }
     return std::make_unique<AssignmentExpr>(std::move(lhs), std::move(rhs));
@@ -537,20 +503,17 @@ std::unique_ptr<Expr> Parser::parseAssignment() {
 
     TokenType binary_op = compound_to_binary(consume()->tokentype); // also consumes compound assignment operator
 
-    if (binary_op == TokenType::INVALID) {
-      error("Received Invalid tokentype in compound assignment");
-      return nullptr;
-    }
+    assert(binary_op != TokenType::INVALID);
 
     if (!isAssignable(lhs.get())) {
-      error("Invalid assignment target");
+      error("Left-hand side of assignment must be assignable.", peek());
       return nullptr;
     }
 
     auto lhs_copy = lhs->clone();
     auto rhs = parseAssignment();
     if (!rhs) {
-      error("Expected expression after compound assignment");
+      error("Expected an expression after compound assignment operator.", peek());
       return nullptr;
     }
 
@@ -570,7 +533,6 @@ std::unique_ptr<Expr> Parser::parseComma() {
     TokenType op = consume()->tokentype;
     auto right = parseAssignment();
     if (!right) {
-      error("Expected expression after ','");
       return nullptr;
     }
 

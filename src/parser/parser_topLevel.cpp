@@ -1,7 +1,6 @@
 #include "parser.h"
 
 std::unique_ptr<StructDecl> Parser::parseStructDeclaration(std::string struct_name, bool expect_semicolon) {
-
   if (!peek()) {
     return nullptr;
   }
@@ -24,17 +23,13 @@ std::unique_ptr<StructDecl> Parser::parseStructDeclaration(std::string struct_na
   while (peek() && peek()->tokentype != TokenType::BRACES_CLOSE) {
     ParsedType field_type = parseDatatype();
     if (field_type.datatype == DataType::INVALID) {
-      error("Expected a datatype");
       return nullptr;
     }
 
-    while (peek() && peek()->tokentype == TokenType::MULTIPLY) {
-      consume();
-      field_type.pointer_depth++;
-    }
+    parsePointerSuffix(field_type);
 
     if (!peek() || peek().value().tokentype != TokenType::IDENTIFIER) {
-      error("Expected an identifier");
+      error("Expected a struct field name.", peek());
       return nullptr;
     }
     std::string field_name = consume().value().value.value();
@@ -44,6 +39,12 @@ std::unique_ptr<StructDecl> Parser::parseStructDeclaration(std::string struct_na
       size_t size = 0;
       if (peek() && peek()->tokentype == TokenType::INT_LET) {
         size = std::stoull(consume()->value.value());
+      } else if (!peek()) {
+        error("Expected an integer array size before end of file.", std::nullopt);
+        return nullptr;
+      } else if (peek()->tokentype != TokenType::SQUARE_BRACKETS_CLOSE) {
+        error("Expected an integer array size.", peek());
+        return nullptr;
       }
       field_type.dimensions.push_back(size);
       if (!match(TokenType::SQUARE_BRACKETS_CLOSE)) {
@@ -95,31 +96,13 @@ std::unique_ptr<UnionDecl> Parser::parseUnionDeclaration(std::string union_name,
   while (peek() && peek()->tokentype != TokenType::BRACES_CLOSE) {
     ParsedType field_type = parseDatatype();
     if (field_type.datatype == DataType::INVALID) {
-      error("Expected a datatype");
       return nullptr;
     }
 
-    while (peek() && peek()->tokentype == TokenType::MULTIPLY) {
-      consume();
-      field_type.pointer_depth++;
-      field_type.pointer_qualifiers.push_back(0);
-      while (peek()) {
-        if (peek()->tokentype == TokenType::CONST) {
-          field_type.pointer_qualifiers.back() |= static_cast<uint8_t>(TypeQualifier::CONST);
-          consume();
-        } else if (peek()->tokentype == TokenType::VOLATILE) {
-          field_type.pointer_qualifiers.back() |= static_cast<uint8_t>(TypeQualifier::VOLATILE);
-          consume();
-        } else if (peek()->tokentype == TokenType::RESTRICT) {
-          field_type.pointer_qualifiers.back() |= static_cast<uint8_t>(TypeQualifier::RESTRICT);
-          consume();
-        } else {
-          break;
-        }
-      }
-    }
+    parsePointerSuffix(field_type);
+
     if (!peek() || peek().value().tokentype != TokenType::IDENTIFIER) {
-      error("Expected an identifier");
+      error("Expected a union field name.", peek());
       return nullptr;
     }
     std::string field_name = consume().value().value.value();
@@ -129,6 +112,12 @@ std::unique_ptr<UnionDecl> Parser::parseUnionDeclaration(std::string union_name,
       size_t size = 0;
       if (peek() && peek()->tokentype == TokenType::INT_LET) {
         size = std::stoull(consume()->value.value());
+      } else if (!peek()) {
+        error("Expected an integer array size before end of file.", std::nullopt);
+        return nullptr;
+      } else if (peek()->tokentype != TokenType::SQUARE_BRACKETS_CLOSE) {
+        error("Expected an integer array size.", peek());
+        return nullptr;
       }
       field_type.dimensions.push_back(size);
       if (!match(TokenType::SQUARE_BRACKETS_CLOSE)) {
@@ -181,7 +170,7 @@ std::unique_ptr<EnumDecl> Parser::parseEnumDeclaration(std::string enum_name, bo
 
   while (peek() && peek()->tokentype != TokenType::BRACES_CLOSE) {
     if (!peek() || peek()->tokentype != TokenType::IDENTIFIER) {
-      error("Expected enum member");
+      error("Expected an enum member name.", peek());
       return nullptr;
     }
 
@@ -189,10 +178,10 @@ std::unique_ptr<EnumDecl> Parser::parseEnumDeclaration(std::string enum_name, bo
     member.name = consume()->value.value();
 
     if (peek() && peek()->tokentype == TokenType::EQUALS) {
-      consume(); // =
+      auto tok = consume(); // =
       member.value = parseAssignment();
       if (!member.value) {
-        error("Expected enum initializer");
+        error("Expected an enumerator initializer after '='.", tok);
         return nullptr;
       }
     }
@@ -234,7 +223,7 @@ ArrayInitializer Parser::parseArrayInitializer() {
     } else {
       auto expr = parseAssignment();
       if (!expr) {
-        error("Expected initializer expression");
+        error("Expected an initializer expression.", peek());
         return init;
       }
       ArrayInitializer leaf;
@@ -277,28 +266,10 @@ std::unique_ptr<GlobalVariableDecl> Parser::parseGlobalVariable() {
     return nullptr;
   }
 
-  while (peek() && peek()->tokentype == TokenType::MULTIPLY) {
-    consume();
-    type.pointer_depth++;
-    type.pointer_qualifiers.push_back(0);
-    while (peek()) {
-      if (peek()->tokentype == TokenType::CONST) {
-        type.pointer_qualifiers.back() |= static_cast<uint8_t>(TypeQualifier::CONST);
-        consume();
-      } else if (peek()->tokentype == TokenType::VOLATILE) {
-        type.pointer_qualifiers.back() |= static_cast<uint8_t>(TypeQualifier::VOLATILE);
-        consume();
-      } else if (peek()->tokentype == TokenType::RESTRICT) {
-        type.pointer_qualifiers.back() |= static_cast<uint8_t>(TypeQualifier::RESTRICT);
-        consume();
-      } else {
-        break;
-      }
-    }
-  }
+  parsePointerSuffix(type);
 
   if (!peek() || peek()->tokentype != TokenType::IDENTIFIER) {
-    error("Expected global variable name");
+    error("Expected a global variable name.", peek());
     return nullptr;
   }
 
@@ -309,6 +280,12 @@ std::unique_ptr<GlobalVariableDecl> Parser::parseGlobalVariable() {
     size_t size = 0;
     if (peek() && peek()->tokentype == TokenType::INT_LET) {
       size = std::stoull(consume()->value.value());
+    } else if (!peek()) {
+      error("Expected an integer array size before end of file.", std::nullopt);
+      return nullptr;
+    } else if (peek()->tokentype != TokenType::SQUARE_BRACKETS_CLOSE) {
+      error("Expected an integer array size.", peek());
+      return nullptr;
     }
     type.dimensions.push_back(size);
     if (!match(TokenType::SQUARE_BRACKETS_CLOSE)) {
@@ -318,18 +295,18 @@ std::unique_ptr<GlobalVariableDecl> Parser::parseGlobalVariable() {
   std::unique_ptr<Expr> initializer;
   auto global = std::make_unique<GlobalVariableDecl>();
   if (peek() && peek()->tokentype == TokenType::EQUALS) {
-    consume(); // =
+    auto tok = consume(); // =
     if (!type.dimensions.empty()) {
       if (peek() && peek()->tokentype == TokenType::BRACES_OPEN) {
         global->array_initializer = parseArrayInitializer();
       } else {
-        error("Expected array initializer");
+        error("Expected an array initializer after '='.", tok);
         return nullptr;
       }
     } else {
       initializer = parseExpr();
       if (!initializer) {
-        error("Expected initializer expression");
+        error("Expected an initializer expression after '='.", tok);
         return nullptr;
       }
     }
@@ -351,7 +328,7 @@ void Parser::parseTopLevelDeclaration() {
   }
 
   if (!(isDatatype(peek()->tokentype) || isTypedefName())) {
-    error("Expected top-level declaration");
+    error("Expected a function, global variable, or typedef declaration.", peek());
     return;
   }
 

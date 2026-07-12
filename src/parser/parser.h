@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <unordered_set>
 #include <vector>
 
@@ -8,6 +9,7 @@
 #include "../ast/program.h"
 #include "../ast/stmts.h"
 #include "../lexer/lexer.h"
+#include "diagnostics/DiagnosticEngine.h"
 
 class Parser {
 private:
@@ -15,6 +17,7 @@ private:
   size_t _index = 0;
   const std::vector<Token> _tokens;
 
+  DiagnosticEngine &diagnostics;
   bool has_error = false;
 
   Program &program;
@@ -35,7 +38,7 @@ private:
   bool match(TokenType expected);
 
   // Error Handling
-  void error(const std::string &msg);
+  void error(const std::string &msg, std::optional<Token>);
 
   // Type Utilities
   bool isDatatype(TokenType) const;
@@ -117,12 +120,8 @@ private:
   std::optional<std::vector<std::unique_ptr<Expr>>> parseArguments();
 
 public:
-  explicit Parser(const std::vector<Token> &tokens, Program &_prog)
-      : _tokens{tokens}, program(_prog) {
-  }
-
-  bool had_error() const {
-    return has_error;
+  explicit Parser(const std::vector<Token> &tokens, Program &_prog, DiagnosticEngine &engine)
+      : _tokens{tokens}, diagnostics{engine}, program(_prog) {
   }
 
   void parse();

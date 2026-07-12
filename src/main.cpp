@@ -35,15 +35,10 @@ int main(int argc, char *argv[]) {
 
   Program program;
 
-  Parser parser{tokens, program};
+  Parser parser{tokens, program, diagnostic};
   parser.parse();
 
   show_ast(debug, program);
-
-  if (parser.had_error()) {
-    std::cerr << "Compiler halted due to parser failure" << std::endl;
-    return -2;
-  }
 
   Semantics analyzer(program);
 
