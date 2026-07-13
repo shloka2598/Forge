@@ -1425,7 +1425,7 @@ void Semantics::analyze() {
   }
 
   if (!has_error) {
-    std::cerr << "Semantics Analyzer passed successfully\n";
+    // std::cerr << "Semantics Analyzer passed successfully\n";
   } else {
     std::cerr << "Semantics Analyzer failed\n";
   }
