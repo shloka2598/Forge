@@ -67,8 +67,7 @@ ReturnStmt *get_return_stmt(SemanticResult &result) {
   REQUIRE(fn->declaration->body != nullptr);
   REQUIRE(fn->declaration->body->statements.size() == 1);
 
-  auto *ret =
-      dynamic_cast<ReturnStmt *>(fn->declaration->body->statements[0].get());
+  auto *ret = dynamic_cast<ReturnStmt *>(fn->declaration->body->statements[0].get());
 
   REQUIRE(ret != nullptr);
 

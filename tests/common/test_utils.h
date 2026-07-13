@@ -53,10 +53,33 @@ T *get_stmt(FunctionDeclStmt *fn, size_t index) {
 }
 
 template <typename T>
+T *get_stmt(BlockStmt *block, size_t index) {
+  REQUIRE(block != nullptr);
+  REQUIRE(index < block->statements.size());
+
+  auto *stmt = dynamic_cast<T *>(block->statements[index].get());
+
+  REQUIRE(stmt != nullptr);
+
+  return stmt;
+}
+
+template <typename T>
 T *get_expr(ReturnStmt *ret) {
   REQUIRE(ret != nullptr);
 
   auto *expr = dynamic_cast<T *>(ret->expr_ptr.get());
+
+  REQUIRE(expr != nullptr);
+
+  return expr;
+}
+
+template <typename T>
+T *get_expr(ExpressionStmt *stmt) {
+  REQUIRE(stmt != nullptr);
+
+  auto *expr = dynamic_cast<T *>(stmt->expr.get());
 
   REQUIRE(expr != nullptr);
 
