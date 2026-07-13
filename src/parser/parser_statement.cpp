@@ -164,6 +164,7 @@ std::unique_ptr<Stmt> Parser::parse_stmt() {
 
   if (!stmt && has_error) {
     recoverStatement();
+    return std::make_unique<EmptyStmt>();
   }
 
   return stmt;

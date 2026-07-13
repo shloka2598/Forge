@@ -708,6 +708,7 @@ void Parser::recoverTopLevel() {
     }
 
     if (peek()->tokentype == TokenType::BRACES_CLOSE) {
+      consume();
       break;
     }
 

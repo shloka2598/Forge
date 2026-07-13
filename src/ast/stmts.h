@@ -27,7 +27,8 @@ enum class StmtType {
   FUNCTION_DECL_STMT,
   GLOBAL_VARIABLE_DECL_STMT,
   ENUM_DECL_STMT,
-  TYPEDEF_DECL_STMT
+  TYPEDEF_DECL_STMT,
+  ERROR_STMT
 };
 
 struct Stmt {
@@ -51,6 +52,17 @@ struct EmptyStmt : Stmt {
   void show_statement(int indent = 0) const override {
     print_indent(indent);
     std::cout << "EmptyStmt\n";
+  }
+};
+
+struct ErrorStmt : Stmt {
+  StmtType stmt_type() const override {
+    return StmtType::ERROR_STMT;
+  }
+
+  void show_statement(int indent = 0) const override {
+    print_indent(indent);
+    std::cout << "ErrorStmt\n";
   }
 };
 

@@ -5,11 +5,13 @@ std::unique_ptr<IfStmt> Parser::parseIfStmt() {
   if (!match(TokenType::PARENTHESIS_OPEN)) {
     return nullptr;
   }
+
   std::unique_ptr<Expr> condition = parseExpr();
   if (!condition) {
     error("Expected a condition expression after 'if'.", tok);
     return nullptr;
   }
+
   if (!match(TokenType::PARENTHESIS_CLOSE)) {
     return nullptr;
   }
