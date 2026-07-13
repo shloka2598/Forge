@@ -12,6 +12,10 @@ std::unique_ptr<BlockStmt> Parser::parseBlock() {
   while (peek() && peek()->tokentype != TokenType::BRACES_CLOSE) {
     std::unique_ptr<Stmt> stmt = parse_stmt();
     if (!stmt) {
+      if (has_error) {
+        recoverStatement();
+        continue;
+      }
       return nullptr;
     }
     block->statements.push_back(std::move(stmt));

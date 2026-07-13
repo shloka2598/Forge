@@ -679,3 +679,138 @@ void Parser::parsePointerSuffix(ParsedType &type) {
     }
   }
 }
+
+void Parser::recoverStatement() {
+  while (peek()) {
+    if (peek()->tokentype == TokenType::SEMI_COLON) {
+      consume();
+      break;
+    }
+
+    if (peek()->tokentype == TokenType::BRACES_CLOSE) {
+      break;
+    }
+
+    consume();
+  }
+  has_error = false;
+}
+
+void Parser::recoverTopLevel() {
+  while (peek()) {
+    if (peek()->tokentype == TokenType::SEMI_COLON) {
+      consume();
+      break;
+    }
+
+    if (isDatatype(peek()->tokentype) || isTypedefName()) {
+      break;
+    }
+
+    if (peek()->tokentype == TokenType::BRACES_CLOSE) {
+      break;
+    }
+
+    consume();
+  }
+
+  has_error = false;
+}
+
+void Parser::recoverUntil(TokenType token) {
+  while (peek()) {
+    if (peek()->tokentype == token) {
+      break;
+    }
+    consume();
+  }
+  has_error = false;
+}
+
+void Parser::recoverParameter() {
+  while (peek()) {
+    if (peek()->tokentype == TokenType::COMMA) {
+      break;
+    }
+
+    if (peek()->tokentype == TokenType::PARENTHESIS_CLOSE) {
+      break;
+    }
+
+    consume();
+  }
+
+  has_error = false;
+}
+
+void Parser::recoverExpression() {
+  int paren_depth = 0;
+  int bracket_depth = 0;
+  int brace_depth = 0;
+
+  while (peek()) {
+    switch (peek()->tokentype) {
+    case TokenType::PARENTHESIS_OPEN:
+      paren_depth++;
+      break;
+
+    case TokenType::PARENTHESIS_CLOSE:
+      if (paren_depth == 0) {
+        has_error = false;
+        return;
+      }
+      if (paren_depth == 1) {
+        has_error = false;
+        return;
+      }
+      paren_depth--;
+      break;
+
+    case TokenType::SQUARE_BRACKETS_OPEN:
+      bracket_depth++;
+      break;
+
+    case TokenType::SQUARE_BRACKETS_CLOSE:
+      if (bracket_depth == 0) {
+        has_error = false;
+        return;
+      }
+      if (bracket_depth == 1) {
+        has_error = false;
+        return;
+      }
+      bracket_depth--;
+      break;
+
+    case TokenType::BRACES_OPEN:
+      brace_depth++;
+      break;
+    case TokenType::BRACES_CLOSE:
+      if (brace_depth == 0) {
+        has_error = false;
+        return;
+      }
+      if (brace_depth == 1) {
+        has_error = false;
+        return;
+      }
+      brace_depth--;
+      break;
+
+    case TokenType::COMMA:
+    case TokenType::SEMI_COLON:
+      if (paren_depth == 0 && bracket_depth == 0 && brace_depth == 0) {
+        has_error = false;
+        return;
+      }
+      break;
+
+    default:
+      break;
+    }
+
+    consume();
+  }
+
+  has_error = false;
+}

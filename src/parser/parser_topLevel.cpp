@@ -329,6 +329,7 @@ void Parser::parseTopLevelDeclaration() {
 
   if (!(isDatatype(peek()->tokentype) || isTypedefName())) {
     error("Expected a function, global variable, or typedef declaration.", peek());
+    recoverTopLevel();
     return;
   }
 
@@ -336,6 +337,9 @@ void Parser::parseTopLevelDeclaration() {
     auto td = parseTypedefDeclarationStmt();
 
     if (!td) {
+      if (has_error) {
+        recoverTopLevel();
+      }
       return;
     }
 
@@ -348,12 +352,18 @@ void Parser::parseTopLevelDeclaration() {
   if (is_function) {
     auto fn = parseFunction();
     if (!fn) {
+      if (has_error) {
+        recoverTopLevel();
+      }
       return;
     }
     program.statements.push_back(std::make_unique<FunctionDeclStmt>(std::move(fn)));
   } else {
     auto global = parseGlobalVariable();
     if (!global) {
+      if (has_error) {
+        recoverTopLevel();
+      }
       return;
     }
     program.statements.push_back(std::make_unique<GlobalVariableDeclStmt>(std::move(global)));
@@ -363,8 +373,5 @@ void Parser::parseTopLevelDeclaration() {
 void Parser::parse() {
   while (peek()) {
     parseTopLevelDeclaration();
-    if (has_error) {
-      return;
-    }
   }
 }

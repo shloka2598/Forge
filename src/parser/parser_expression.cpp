@@ -37,6 +37,12 @@ std::unique_ptr<Expr> Parser::parsePrimary() {
     consume(); // (
     auto expr = parseExpr();
     if (!expr) {
+      recoverUntil(TokenType::PARENTHESIS_CLOSE);
+
+      if (!match(TokenType::PARENTHESIS_CLOSE)) {
+        return nullptr;
+      }
+
       return nullptr;
     }
     if (!match(TokenType::PARENTHESIS_CLOSE)) {
@@ -102,6 +108,12 @@ std::unique_ptr<Expr> Parser::parseUnaryAndCasting() {
       consume(); // (
       ParsedType type = parseDatatype();
       if (type.datatype == DataType::INVALID) {
+        recoverUntil(TokenType::PARENTHESIS_CLOSE);
+
+        if (!match(TokenType::PARENTHESIS_CLOSE)) {
+          return nullptr;
+        }
+
         return nullptr;
       }
 
@@ -129,6 +141,12 @@ std::unique_ptr<Expr> Parser::parseUnaryAndCasting() {
     consume(); // (
     ParsedType type = parseDatatype();
     if (type.datatype == DataType::INVALID) {
+      recoverUntil(TokenType::PARENTHESIS_CLOSE);
+
+      if (!match(TokenType::PARENTHESIS_CLOSE)) {
+        return nullptr;
+      }
+
       return nullptr;
     }
     parsePointerSuffix(type);
@@ -158,6 +176,12 @@ std::unique_ptr<Expr> Parser::parsePostfix() {
       if (peek() && peek()->tokentype != TokenType::PARENTHESIS_CLOSE) {
         auto parsed_args = parseArguments();
         if (!parsed_args) {
+          recoverUntil(TokenType::PARENTHESIS_CLOSE);
+
+          if (!match(TokenType::PARENTHESIS_CLOSE)) {
+            return nullptr;
+          }
+
           return nullptr;
         }
         args = std::move(parsed_args.value());
@@ -180,6 +204,10 @@ std::unique_ptr<Expr> Parser::parsePostfix() {
       consume(); // [
       auto index_expr = parseExpr();
       if (!index_expr) {
+        recoverUntil(TokenType::SQUARE_BRACKETS_CLOSE);
+        if (!match(TokenType::SQUARE_BRACKETS_CLOSE)) {
+          return nullptr;
+        }
         return nullptr;
       }
       if (!match(TokenType::SQUARE_BRACKETS_CLOSE)) {
@@ -462,6 +490,19 @@ std::unique_ptr<Expr> Parser::parseConditional() {
 
     if (!true_expr) {
       error("Expected an expression after '?'.", peek());
+
+      recoverUntil(TokenType::COLON);
+
+      if (!match(TokenType::COLON)) {
+        return nullptr;
+      }
+
+      auto false_expr = parseAssignment();
+
+      if (!false_expr) {
+        recoverExpression();
+      }
+
       return nullptr;
     }
 
@@ -470,8 +511,10 @@ std::unique_ptr<Expr> Parser::parseConditional() {
     }
 
     auto false_expr = parseAssignment();
+
     if (!false_expr) {
       error("Expected an expression after ':'.", peek());
+      recoverExpression();
       return nullptr;
     }
 
@@ -553,7 +596,14 @@ std::optional<std::vector<std::unique_ptr<Expr>>> Parser::parseArguments() {
     auto expr = parseAssignment();
 
     if (!expr) {
-      return std::nullopt;
+      recoverExpression();
+
+      if (peek() && peek()->tokentype == TokenType::COMMA) {
+        consume();
+        continue;
+      }
+
+      break;
     }
 
     args.push_back(std::move(expr));

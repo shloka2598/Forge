@@ -40,6 +40,23 @@ private:
   // Error Handling
   void error(const std::string &msg, std::optional<Token>);
 
+  // Error recovery
+  void recoverStatement();
+  void recoverTopLevel();
+  void recoverUntil(TokenType);
+  void recoverParameter();
+  void recoverExpression();
+
+  template <typename T>
+  bool recoverIfFailed(const std::unique_ptr<T> &node, TokenType sync) {
+    if (node || !has_error) {
+      return false;
+    }
+
+    recoverUntil(sync);
+    return true;
+  }
+
   // Type Utilities
   bool isDatatype(TokenType) const;
   bool isCastExpression() const;

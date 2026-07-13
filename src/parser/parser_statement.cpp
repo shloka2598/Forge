@@ -105,86 +105,68 @@ std::unique_ptr<ExpressionStmt> Parser::parseExpressionStmt() {
 }
 
 std::unique_ptr<Stmt> Parser::parse_stmt() {
+  std::unique_ptr<Stmt> stmt;
+
   if (!peek()) {
     return nullptr;
   }
   TokenType tok = peek()->tokentype;
 
   if (tok == TokenType::BRACES_OPEN) {
-    return parseBlock();
-  }
-
-  if (tok == TokenType::RETURN) {
+    stmt = parseBlock();
+  } else if (tok == TokenType::RETURN) {
     consume();
-    return parseReturnStmt();
-  }
-
-  if (tok == TokenType::UNION || tok == TokenType::STRUCT || tok == TokenType::ENUM) {
-    return parseVariableDeclarationStmt();
-  }
-
-  if (tok == TokenType::TYPEDEF) {
-    return parseTypedefDeclarationStmt();
-  }
-
-  if (isDatatype(tok) || isTypedefName()) {
-    return parseVariableDeclarationStmt();
-  }
-
-  if (tok == TokenType::IDENTIFIER ||
-      tok == TokenType::INT_LET ||
-      tok == TokenType::FLOAT_LET ||
-      tok == TokenType::DOUBLE_LET ||
-      tok == TokenType::CHAR_LET ||
-      tok == TokenType::STRING_LET ||
-      tok == TokenType::PLUS_PLUS ||
-      tok == TokenType::MINUS_MINUS ||
-      tok == TokenType::PARENTHESIS_OPEN ||
-      tok == TokenType::PLUS ||
-      tok == TokenType::MINUS ||
-      tok == TokenType::EXCLAMATION ||
-      tok == TokenType::TILDE ||
-      tok == TokenType::MULTIPLY ||
-      tok == TokenType::AMPERSAND || tok == TokenType::SIZEOF) {
-
-    return parseExpressionStmt();
-  }
-
-  if (tok == TokenType::IF) {
-    return parseIfStmt();
-  }
-
-  if (tok == TokenType::WHILE) {
-    return parseWhileStmt();
-  }
-
-  if (tok == TokenType::DO) {
-    return parseDoWhileStmt();
-  }
-
-  if (tok == TokenType::FOR) {
-    return parseForStmt();
-  }
-
-  if (tok == TokenType::BREAK) {
-    return parseBreakStmt();
-  }
-
-  if (tok == TokenType::CONTINUE) {
-    return parseContinueStmt();
-  }
-
-  if (tok == TokenType::SWITCH) {
-    return parseSwitchStmt();
-  }
-
-  if (tok == TokenType::SEMI_COLON) {
+    stmt = parseReturnStmt();
+  } else if (tok == TokenType::UNION || tok == TokenType::STRUCT || tok == TokenType::ENUM) {
+    stmt = parseVariableDeclarationStmt();
+  } else if (tok == TokenType::TYPEDEF) {
+    stmt = parseTypedefDeclarationStmt();
+  } else if (isDatatype(tok) || isTypedefName()) {
+    stmt = parseVariableDeclarationStmt();
+  } else if (tok == TokenType::IDENTIFIER ||
+             tok == TokenType::INT_LET ||
+             tok == TokenType::FLOAT_LET ||
+             tok == TokenType::DOUBLE_LET ||
+             tok == TokenType::CHAR_LET ||
+             tok == TokenType::STRING_LET ||
+             tok == TokenType::PLUS_PLUS ||
+             tok == TokenType::MINUS_MINUS ||
+             tok == TokenType::PARENTHESIS_OPEN ||
+             tok == TokenType::PLUS ||
+             tok == TokenType::MINUS ||
+             tok == TokenType::EXCLAMATION ||
+             tok == TokenType::TILDE ||
+             tok == TokenType::MULTIPLY ||
+             tok == TokenType::AMPERSAND || tok == TokenType::SIZEOF) {
+    stmt = parseExpressionStmt();
+  } else if (tok == TokenType::IF) {
+    stmt = parseIfStmt();
+  } else if (tok == TokenType::WHILE) {
+    stmt = parseWhileStmt();
+  } else if (tok == TokenType::DO) {
+    stmt = parseDoWhileStmt();
+  } else if (tok == TokenType::FOR) {
+    stmt = parseForStmt();
+  } else if (tok == TokenType::BREAK) {
+    stmt = parseBreakStmt();
+  } else if (tok == TokenType::CONTINUE) {
+    stmt = parseContinueStmt();
+  } else if (tok == TokenType::SWITCH) {
+    stmt = parseSwitchStmt();
+  } else if (tok == TokenType::SEMI_COLON) {
     consume();
     return std::make_unique<EmptyStmt>();
+  } else {
+    error("Expected a statement.", peek());
+    recoverStatement();
+    return nullptr;
   }
 
-  error("Expected a statement.", peek());
-  return nullptr;
+  if (!stmt && has_error) {
+    recoverStatement();
+  }
+
+  return stmt;
 }
 
 std::unique_ptr<Stmt> Parser::parseBreakStmt() {

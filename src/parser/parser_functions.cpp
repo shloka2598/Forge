@@ -6,13 +6,25 @@ std::optional<std::vector<Parameter>> Parser::parseParameters() {
   while (peek() && peek()->tokentype != TokenType::PARENTHESIS_CLOSE) {
     if (!isDatatype(peek()->tokentype) && !isTypedefName()) {
       error("Expected a parameter datatype.", peek());
-      return std::nullopt;
+      recoverParameter();
+
+      if (peek() && peek()->tokentype == TokenType::COMMA) {
+        consume();
+        continue;
+      }
+
+      break;
     }
 
     ParsedType type = parseDatatype();
 
     if (type.datatype == DataType::INVALID) {
-      return std::nullopt;
+      recoverParameter();
+      if (peek() && peek()->tokentype == TokenType::COMMA) {
+        consume();
+        continue;
+      }
+      break;
     }
 
     // void in parameter case
@@ -40,6 +52,7 @@ std::optional<std::vector<Parameter>> Parser::parseParameters() {
       name = consume()->value.value();
     }
 
+    bool parameter_failed = false;
     while (peek() && peek()->tokentype == TokenType::SQUARE_BRACKETS_OPEN) {
       consume(); // [
       size_t size = 0;
@@ -50,12 +63,28 @@ std::optional<std::vector<Parameter>> Parser::parseParameters() {
         return std::nullopt;
       } else if (peek()->tokentype != TokenType::SQUARE_BRACKETS_CLOSE) {
         error("Expected an integer array size.", peek());
-        return std::nullopt;
+        recoverParameter();
+        parameter_failed = true;
+        if (peek() && peek()->tokentype == TokenType::COMMA) {
+          consume();
+        }
+
+        break;
       }
       type.dimensions.push_back(size);
       if (!match(TokenType::SQUARE_BRACKETS_CLOSE)) {
-        return std::nullopt;
+        recoverParameter();
+
+        parameter_failed = true;
+
+        if (peek() && peek()->tokentype == TokenType::COMMA) {
+          consume();
+        }
+        break;
       }
+    }
+    if (parameter_failed) {
+      continue;
     }
     params.push_back({.type = std::move(type), .name = std::move(name)});
     if (peek() && peek()->tokentype == TokenType::COMMA) {

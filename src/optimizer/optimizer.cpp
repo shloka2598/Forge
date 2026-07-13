@@ -3,7 +3,7 @@
 #include "constant_folder.h"
 #include "dead_code_eliminator.h"
 
-// TOD add constant propogation and copy propogation
+// TODO add constant propogation and copy propogation
 
 Optimizer::Optimizer(Program &program)
     : program(program) {

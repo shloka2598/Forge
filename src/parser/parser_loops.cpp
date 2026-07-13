@@ -119,7 +119,7 @@ std::unique_ptr<SwitchStmt> Parser::parseSwitchStmt() {
         auto stmt = parse_stmt();
 
         if (!stmt) {
-          return nullptr;
+          continue;
         }
 
         case_body->statements.push_back(std::move(stmt));
@@ -139,7 +139,7 @@ std::unique_ptr<SwitchStmt> Parser::parseSwitchStmt() {
       while (peek() && peek()->tokentype != TokenType::CASE && peek()->tokentype != TokenType::DEFAULT && peek()->tokentype != TokenType::BRACES_CLOSE) {
         auto stmt = parse_stmt();
         if (!stmt) {
-          return nullptr;
+          continue;
         }
         default_body->statements.push_back(std::move(stmt));
       }
@@ -245,9 +245,7 @@ std::unique_ptr<ForStmt> Parser::parseForStmt() {
   std::unique_ptr<Stmt> init_stmt = nullptr;
   if (peek() && peek()->tokentype != TokenType::SEMI_COLON) {
     init_stmt = parseForInitStmt();
-    if (!init_stmt) {
-      return nullptr;
-    }
+    recoverIfFailed(init_stmt, TokenType::SEMI_COLON);
   }
   if (!match(TokenType::SEMI_COLON)) {
     return nullptr;
@@ -255,9 +253,7 @@ std::unique_ptr<ForStmt> Parser::parseForStmt() {
   std::unique_ptr<Expr> condition = nullptr;
   if (peek() && peek()->tokentype != TokenType::SEMI_COLON) {
     condition = parseExpr();
-    if (!condition) {
-      return nullptr;
-    }
+    recoverIfFailed(condition, TokenType::SEMI_COLON);
   }
   if (!match(TokenType::SEMI_COLON)) {
     return nullptr;
@@ -265,9 +261,7 @@ std::unique_ptr<ForStmt> Parser::parseForStmt() {
   std::unique_ptr<Stmt> update_stmt = nullptr;
   if (peek() && peek()->tokentype != TokenType::PARENTHESIS_CLOSE) {
     update_stmt = parseForUpdateStmt();
-    if (!update_stmt) {
-      return nullptr;
-    }
+    recoverIfFailed(update_stmt, TokenType::PARENTHESIS_CLOSE);
   }
   if (!match(TokenType::PARENTHESIS_CLOSE)) {
     return nullptr;
