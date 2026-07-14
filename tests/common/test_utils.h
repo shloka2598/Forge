@@ -113,3 +113,5 @@ T *get_argument(FunctionCallExpr *call, size_t index) {
 
   return arg;
 }
+
+GlobalVariableDeclStmt *get_global_variable_decl(SemanticResult &, size_t index = 0);

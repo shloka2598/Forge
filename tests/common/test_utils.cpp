@@ -133,3 +133,13 @@ Parameter *get_parameter(FunctionDeclStmt *fn, size_t index) {
 
   return &fn->declaration->parameters[index];
 }
+
+GlobalVariableDeclStmt *get_global_variable_decl(SemanticResult &result, size_t index) {
+  REQUIRE(index < result.program.statements.size());
+
+  auto *decl = dynamic_cast<GlobalVariableDeclStmt *>(result.program.statements[index].get());
+
+  REQUIRE(decl != nullptr);
+
+  return decl;
+}
