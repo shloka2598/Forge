@@ -213,9 +213,14 @@ std::unique_ptr<EnumDecl> Parser::parseEnumDeclaration(std::string enum_name, bo
 ArrayInitializer Parser::parseArrayInitializer() {
   ArrayInitializer init;
 
-  if (!match(TokenType::BRACES_OPEN)) {
+  auto open_brace = consume();
+
+  if (!open_brace || open_brace->tokentype != TokenType::BRACES_OPEN) {
+    error("Expected '{'.", peek());
     return init;
   }
+
+  init.token = *open_brace;
 
   while (peek() && peek()->tokentype != TokenType::BRACES_CLOSE) {
     if (peek()->tokentype == TokenType::BRACES_OPEN) {
@@ -250,15 +255,15 @@ std::unique_ptr<GlobalVariableDecl> Parser::parseGlobalVariable() {
   }
 
   if (pending_struct) {
-    program.statements.push_back(std::make_unique<StructDeclarationStmt>(std::move(pending_struct)));
+    program.statements.push_back(std::make_unique<StructDeclarationStmt>(pending_struct->token, std::move(pending_struct)));
   }
 
   if (pending_union) {
-    program.statements.push_back(std::make_unique<UnionDeclarationStmt>(std::move(pending_union)));
+    program.statements.push_back(std::make_unique<UnionDeclarationStmt>(pending_union->token, std::move(pending_union)));
   }
 
   if (pending_enum) {
-    program.statements.push_back(std::make_unique<EnumDeclarationStmt>(std::move(pending_enum)));
+    program.statements.push_back(std::make_unique<EnumDeclarationStmt>(pending_enum->token, std::move(pending_enum)));
   }
 
   if (peek() && peek()->tokentype == TokenType::SEMI_COLON) {
@@ -273,7 +278,8 @@ std::unique_ptr<GlobalVariableDecl> Parser::parseGlobalVariable() {
     return nullptr;
   }
 
-  std::string name = consume()->value.value();
+  auto name_tok = consume();
+  std::string name = name_tok->value.value();
 
   while (peek() && peek()->tokentype == TokenType::SQUARE_BRACKETS_OPEN) {
     consume();
@@ -318,6 +324,7 @@ std::unique_ptr<GlobalVariableDecl> Parser::parseGlobalVariable() {
   global->type = std::move(type);
   global->name = std::move(name);
   global->initializer = std::move(initializer);
+  global->token = *name_tok;
 
   return global;
 }
@@ -357,7 +364,7 @@ void Parser::parseTopLevelDeclaration() {
       }
       return;
     }
-    program.statements.push_back(std::make_unique<FunctionDeclStmt>(std::move(fn)));
+    program.statements.push_back(std::make_unique<FunctionDeclStmt>(fn->token, std::move(fn)));
   } else {
     auto global = parseGlobalVariable();
     if (!global) {

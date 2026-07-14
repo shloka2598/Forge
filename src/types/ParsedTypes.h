@@ -1,6 +1,7 @@
 #pragma once
 
 #include "./Datatypes.h"
+#include "lexer/lexer.h"
 
 #include <cstdint>
 #include <sstream>
@@ -30,6 +31,7 @@ enum class FunctionSpecifier : uint8_t {
 };
 
 struct ParsedType {
+  Token token;
   DataType datatype = DataType::INVALID;
   std::string custom_name;
 

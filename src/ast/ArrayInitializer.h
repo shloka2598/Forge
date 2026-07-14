@@ -10,6 +10,7 @@ struct ArrayInitializer {
   bool is_leaf = false;
   std::unique_ptr<Expr> expr;
   std::vector<ArrayInitializer> children;
+  Token token;
 
   void show_initializer(int indent = 0) const {
     for (int i = 0; i < indent; i++) {

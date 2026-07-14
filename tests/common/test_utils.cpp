@@ -111,10 +111,8 @@ SemanticResult analyze(std::string_view source) {
   Parser parser{tokens, result.program, result.diagnostics};
   parser.parse();
 
-  result.semantics = std::make_unique<Semantics>(result.program);
+  result.semantics = std::make_unique<Semantics>(result.program, result.diagnostics);
   result.semantics->analyze();
-
-  result.semantic_error = result.semantics->error_occured();
 
   return result;
 }

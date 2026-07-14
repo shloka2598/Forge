@@ -16,6 +16,7 @@ struct StructDecl {
   std::string name;
   std::vector<StructField> fields;
   bool is_definition = true;
+  Token token;
 
   StructDecl(std::string name_, std::vector<StructField> fields_) : name{std::move(name_)}, fields{std::move(fields_)} {
   }
@@ -44,6 +45,7 @@ struct UnionDecl {
   std::string name;
   std::vector<UnionField> fields;
   bool is_definition = true;
+  Token token;
 
   UnionDecl(std::string name_, std::vector<UnionField> fields_) : name{std::move(name_)}, fields{std::move(fields_)} {
   }
@@ -72,6 +74,7 @@ struct EnumDecl {
   std::string name;
   std::vector<EnumMember> members;
   bool is_definition = true;
+  Token token;
 
   EnumDecl(std::string n, std::vector<EnumMember> m) : name(std::move(n)), members(std::move(m)) {
   }

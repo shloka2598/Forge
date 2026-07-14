@@ -37,6 +37,8 @@ enum class ValueCategory {
 };
 
 struct Expr {
+  Token token;
+
   Type *type = nullptr;
   ValueCategory value_category = ValueCategory::RVALUE;
 
@@ -67,7 +69,8 @@ struct Expr {
 struct IntLetExpr : Expr {
   int64_t value;
 
-  explicit IntLetExpr(int64_t value) : value{value} {
+  explicit IntLetExpr(Token token, int64_t value) : value{value} {
+    this->token = std::move(token);
   }
 
   ExprType expr_type() const override {
@@ -75,7 +78,7 @@ struct IntLetExpr : Expr {
   }
 
   std::unique_ptr<Expr> clone() const override {
-    return std::make_unique<IntLetExpr>(value);
+    return std::make_unique<IntLetExpr>(token, value);
   }
 
   void show_expr(int indent = 0) const override {
@@ -88,7 +91,8 @@ struct IntLetExpr : Expr {
 struct DoubleLetExpr : Expr {
   double value;
 
-  explicit DoubleLetExpr(double value) : value{value} {
+  explicit DoubleLetExpr(Token token, double value) : value{value} {
+    this->token = std::move(token);
   }
 
   ExprType expr_type() const override {
@@ -96,7 +100,7 @@ struct DoubleLetExpr : Expr {
   }
 
   std::unique_ptr<Expr> clone() const override {
-    return std::make_unique<DoubleLetExpr>(value);
+    return std::make_unique<DoubleLetExpr>(token, value);
   }
 
   void show_expr(int indent = 0) const override {
@@ -109,7 +113,8 @@ struct DoubleLetExpr : Expr {
 struct FloatLetExpr : Expr {
   float value;
 
-  explicit FloatLetExpr(float value) : value{value} {
+  explicit FloatLetExpr(Token token, float value) : value{value} {
+    this->token = std::move(token);
   }
 
   ExprType expr_type() const override {
@@ -117,7 +122,7 @@ struct FloatLetExpr : Expr {
   }
 
   std::unique_ptr<Expr> clone() const override {
-    return std::make_unique<FloatLetExpr>(value);
+    return std::make_unique<FloatLetExpr>(token, value);
   }
 
   void show_expr(int indent = 0) const override {
@@ -130,7 +135,8 @@ struct FloatLetExpr : Expr {
 struct CharLetExpr : Expr {
   char value;
 
-  explicit CharLetExpr(char value) : value{value} {
+  explicit CharLetExpr(Token token, char value) : value{value} {
+    this->token = std::move(token);
   }
 
   ExprType expr_type() const override {
@@ -138,7 +144,7 @@ struct CharLetExpr : Expr {
   }
 
   std::unique_ptr<Expr> clone() const override {
-    return std::make_unique<CharLetExpr>(value);
+    return std::make_unique<CharLetExpr>(token, value);
   }
 
   void show_expr(int indent = 0) const override {
@@ -151,7 +157,8 @@ struct CharLetExpr : Expr {
 struct StringLiteralExpr : Expr {
   std::string value;
 
-  explicit StringLiteralExpr(std::string value) : value(std::move(value)) {
+  explicit StringLiteralExpr(Token token, std::string value) : value(std::move(value)) {
+    this->token = std::move(token);
   }
 
   ExprType expr_type() const override {
@@ -159,7 +166,7 @@ struct StringLiteralExpr : Expr {
   }
 
   std::unique_ptr<Expr> clone() const override {
-    return std::make_unique<StringLiteralExpr>(value);
+    return std::make_unique<StringLiteralExpr>(token, value);
   }
 
   void show_expr(int indent = 0) const override {
@@ -172,7 +179,8 @@ struct StringLiteralExpr : Expr {
 struct IdentifierExpr : Expr {
   std::string identifier_name;
 
-  explicit IdentifierExpr(const std::string &name) : identifier_name{name} {
+  explicit IdentifierExpr(Token token, const std::string &name) : identifier_name{name} {
+    this->token = std::move(token);
   }
 
   ExprType expr_type() const override {
@@ -180,7 +188,7 @@ struct IdentifierExpr : Expr {
   }
 
   std::unique_ptr<Expr> clone() const override {
-    return std::make_unique<IdentifierExpr>(identifier_name);
+    return std::make_unique<IdentifierExpr>(token, identifier_name);
   }
 
   void show_expr(int indent = 0) const override {
@@ -195,7 +203,8 @@ struct BinaryExpr : Expr {
   TokenType op;
   std::unique_ptr<Expr> right_expr;
 
-  BinaryExpr(std::unique_ptr<Expr> left, TokenType op, std::unique_ptr<Expr> right) : left_expr{std::move(left)}, op{op}, right_expr{std::move(right)} {
+  BinaryExpr(Token token, std::unique_ptr<Expr> left, TokenType op, std::unique_ptr<Expr> right) : left_expr{std::move(left)}, op{op}, right_expr{std::move(right)} {
+    this->token = std::move(token);
   }
 
   ExprType expr_type() const override {
@@ -203,7 +212,7 @@ struct BinaryExpr : Expr {
   }
 
   std::unique_ptr<Expr> clone() const override {
-    return std::make_unique<BinaryExpr>(left_expr->clone(), op, right_expr->clone());
+    return std::make_unique<BinaryExpr>(token, left_expr->clone(), op, right_expr->clone());
   }
 
   void show_expr(int indent = 0) const override {
@@ -225,7 +234,8 @@ struct UnaryExpr : Expr {
   TokenType op;
   std::unique_ptr<Expr> right_expr;
 
-  UnaryExpr(TokenType op, std::unique_ptr<Expr> right) : op{op}, right_expr{std::move(right)} {
+  UnaryExpr(Token token, TokenType op, std::unique_ptr<Expr> right) : op{op}, right_expr{std::move(right)} {
+    this->token = std::move(token);
   }
 
   ExprType expr_type() const override {
@@ -233,7 +243,7 @@ struct UnaryExpr : Expr {
   }
 
   std::unique_ptr<Expr> clone() const override {
-    return std::make_unique<UnaryExpr>(op, right_expr->clone());
+    return std::make_unique<UnaryExpr>(token, op, right_expr->clone());
   }
 
   void show_expr(int indent = 0) const override {
@@ -251,8 +261,9 @@ struct IncrementExpr : Expr {
   bool is_prefix;
   bool is_increment;
   std::unique_ptr<Expr> operand;
-  IncrementExpr(bool prefix, bool increment, std::unique_ptr<Expr> expr)
+  IncrementExpr(Token token, bool prefix, bool increment, std::unique_ptr<Expr> expr)
       : is_prefix(prefix), is_increment(increment), operand(std::move(expr)) {
+    this->token = std::move(token);
   }
 
   ExprType expr_type() const override {
@@ -263,7 +274,7 @@ struct IncrementExpr : Expr {
   }
 
   std::unique_ptr<Expr> clone() const override {
-    return std::make_unique<IncrementExpr>(is_prefix, is_increment, operand->clone());
+    return std::make_unique<IncrementExpr>(token, is_prefix, is_increment, operand->clone());
   }
 
   void show_expr(int indent = 0) const override {
@@ -284,7 +295,8 @@ struct FunctionCallExpr : Expr {
   std::string function_name;
   std::vector<std::unique_ptr<Expr>> arguments;
 
-  FunctionCallExpr(std::string name, std::vector<std::unique_ptr<Expr>> args) : function_name(std::move(name)), arguments(std::move(args)) {
+  FunctionCallExpr(Token token, std::string name, std::vector<std::unique_ptr<Expr>> args) : function_name(std::move(name)), arguments(std::move(args)) {
+    this->token = std::move(token);
   }
 
   ExprType expr_type() const override {
@@ -296,7 +308,7 @@ struct FunctionCallExpr : Expr {
     for (const auto &arg : arguments) {
       args.push_back(arg->clone());
     }
-    return std::make_unique<FunctionCallExpr>(function_name, std::move(args));
+    return std::make_unique<FunctionCallExpr>(token, function_name, std::move(args));
   }
 
   void show_expr(int indent = 0) const override {
@@ -313,7 +325,8 @@ struct CastExpr : Expr {
   ParsedType target_type;
   std::unique_ptr<Expr> expr;
 
-  CastExpr(ParsedType type, std::unique_ptr<Expr> expr) : target_type(type), expr(std::move(expr)) {
+  CastExpr(Token token, ParsedType type, std::unique_ptr<Expr> expr) : target_type(type), expr(std::move(expr)) {
+    this->token = std::move(token);
   }
 
   ExprType expr_type() const override {
@@ -321,7 +334,7 @@ struct CastExpr : Expr {
   }
 
   std::unique_ptr<Expr> clone() const override {
-    return std::make_unique<CastExpr>(target_type, expr->clone());
+    return std::make_unique<CastExpr>(token, target_type, expr->clone());
   }
 
   void show_expr(int indent = 0) const override {
@@ -347,8 +360,9 @@ struct ArrayAccessExpr : Expr {
   std::unique_ptr<Expr> base_expr;
   std::unique_ptr<Expr> index_expr;
 
-  ArrayAccessExpr(std::unique_ptr<Expr> base, std::unique_ptr<Expr> index)
+  ArrayAccessExpr(Token token, std::unique_ptr<Expr> base, std::unique_ptr<Expr> index)
       : base_expr(std::move(base)), index_expr(std::move(index)) {
+    this->token = std::move(token);
   }
 
   ExprType expr_type() const override {
@@ -356,7 +370,7 @@ struct ArrayAccessExpr : Expr {
   }
 
   std::unique_ptr<Expr> clone() const override {
-    return std::make_unique<ArrayAccessExpr>(base_expr->clone(), index_expr->clone());
+    return std::make_unique<ArrayAccessExpr>(token, base_expr->clone(), index_expr->clone());
   }
 
   void show_expr(int indent = 0) const override {
@@ -385,8 +399,9 @@ struct AssignmentExpr : Expr {
   std::unique_ptr<Expr> lhs;
   std::unique_ptr<Expr> rhs;
 
-  AssignmentExpr(std::unique_ptr<Expr> lhs_, std::unique_ptr<Expr> rhs_)
+  AssignmentExpr(Token token, std::unique_ptr<Expr> lhs_, std::unique_ptr<Expr> rhs_)
       : lhs(std::move(lhs_)), rhs(std::move(rhs_)) {
+    this->token = std::move(token);
   }
 
   ExprType expr_type() const override {
@@ -394,7 +409,7 @@ struct AssignmentExpr : Expr {
   }
 
   std::unique_ptr<Expr> clone() const override {
-    return std::make_unique<AssignmentExpr>(lhs->clone(), rhs->clone());
+    return std::make_unique<AssignmentExpr>(token, lhs->clone(), rhs->clone());
   }
 
   void show_expr(int indent = 0) const override {
@@ -422,8 +437,9 @@ struct ConditionalExpr : Expr {
   std::unique_ptr<Expr> true_expr;
   std::unique_ptr<Expr> false_expr;
 
-  ConditionalExpr(std::unique_ptr<Expr> condition_, std::unique_ptr<Expr> true_expr_,
+  ConditionalExpr(Token token, std::unique_ptr<Expr> condition_, std::unique_ptr<Expr> true_expr_,
                   std::unique_ptr<Expr> false_expr_) : condition{std::move(condition_)}, true_expr{std::move(true_expr_)}, false_expr{std::move(false_expr_)} {
+    this->token = std::move(token);
   }
 
   ExprType expr_type() const override {
@@ -431,7 +447,7 @@ struct ConditionalExpr : Expr {
   }
 
   std::unique_ptr<Expr> clone() const override {
-    return std::make_unique<ConditionalExpr>(condition->clone(), true_expr->clone(), false_expr->clone());
+    return std::make_unique<ConditionalExpr>(token, condition->clone(), true_expr->clone(), false_expr->clone());
   }
 
   void show_expr(int indent = 0) const override {
@@ -467,7 +483,8 @@ struct MemberAccessExpr : Expr {
   std::string member_name;
   TokenType op;
 
-  MemberAccessExpr(std::unique_ptr<Expr> base_expr_, std::string member_name_, TokenType op_) : base_expr(std::move(base_expr_)), member_name(std::move(member_name_)), op(op_) {
+  MemberAccessExpr(Token token, std::unique_ptr<Expr> base_expr_, std::string member_name_, TokenType op_) : base_expr(std::move(base_expr_)), member_name(std::move(member_name_)), op(op_) {
+    this->token = std::move(token);
   }
 
   ExprType expr_type() const override {
@@ -475,7 +492,7 @@ struct MemberAccessExpr : Expr {
   }
 
   std::unique_ptr<Expr> clone() const override {
-    return std::make_unique<MemberAccessExpr>(base_expr->clone(), member_name, op);
+    return std::make_unique<MemberAccessExpr>(token, base_expr->clone(), member_name, op);
   }
 
   void show_expr(int indent = 0) const override {
@@ -501,10 +518,12 @@ struct SizeofExpr : Expr {
   std::optional<ParsedType> parsed_type;
   std::unique_ptr<Expr> expr;
 
-  explicit SizeofExpr(ParsedType type) : parsed_type(std::move(type)) {
+  explicit SizeofExpr(Token token, ParsedType type) : parsed_type(std::move(type)) {
+    this->token = std::move(token);
   }
 
-  explicit SizeofExpr(std::unique_ptr<Expr> expr_) : expr(std::move(expr_)) {
+  explicit SizeofExpr(Token token, std::unique_ptr<Expr> expr_) : expr(std::move(expr_)) {
+    this->token = std::move(token);
   }
 
   ExprType expr_type() const override {
@@ -513,10 +532,10 @@ struct SizeofExpr : Expr {
 
   std::unique_ptr<Expr> clone() const override {
     if (parsed_type.has_value()) {
-      return std::make_unique<SizeofExpr>(*parsed_type);
+      return std::make_unique<SizeofExpr>(token, *parsed_type);
     }
 
-    return std::make_unique<SizeofExpr>(expr->clone());
+    return std::make_unique<SizeofExpr>(token, expr->clone());
   }
 
   void show_expr(int indent = 0) const override {

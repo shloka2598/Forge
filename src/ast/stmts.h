@@ -34,6 +34,7 @@ enum class StmtType {
 struct Stmt {
   virtual void show_statement(int indent = 0) const = 0;
   virtual StmtType stmt_type() const = 0;
+  Token token;
 
   inline void print_indent(int indent) const {
     for (int i = 0; i < indent; i++) {
@@ -71,7 +72,8 @@ struct BlockStmt : Stmt {
 
   BlockStmt() = default;
 
-  explicit BlockStmt(std::vector<std::unique_ptr<Stmt>> stmts) : statements(std::move(stmts)) {
+  explicit BlockStmt(Token token, std::vector<std::unique_ptr<Stmt>> stmts) : statements(std::move(stmts)) {
+    this->token = std::move(token);
   }
 
   virtual StmtType stmt_type() const override {
@@ -103,7 +105,8 @@ struct VariableDeclarationStmt : Stmt {
 
   Type *resolved_type = nullptr;
 
-  VariableDeclarationStmt(ParsedType type_, std::string var_name_, std::unique_ptr<Expr> expr_ptr_, std::optional<ArrayInitializer> init_ = std::nullopt) : type(std::move(type_)), var_name(std::move(var_name_)), expr_ptr(std::move(expr_ptr_)), init(std::move(init_)) {
+  VariableDeclarationStmt(Token token_, ParsedType type_, std::string var_name_, std::unique_ptr<Expr> expr_ptr_, std::optional<ArrayInitializer> init_ = std::nullopt) : type(std::move(type_)), var_name(std::move(var_name_)), expr_ptr(std::move(expr_ptr_)), init(std::move(init_)) {
+    this->token = std::move(token_);
   }
 
   virtual StmtType stmt_type() const override {
@@ -165,7 +168,8 @@ struct VariableDeclarationStmt : Stmt {
 struct ReturnStmt : Stmt {
   std::unique_ptr<Expr> expr_ptr;
 
-  ReturnStmt(std::unique_ptr<Expr> expr_ptr) : expr_ptr(std::move(expr_ptr)) {
+  ReturnStmt(Token token, std::unique_ptr<Expr> expr_ptr) : expr_ptr(std::move(expr_ptr)) {
+    this->token = std::move(token);
   }
 
   virtual StmtType stmt_type() const override {
@@ -188,7 +192,8 @@ struct ReturnStmt : Stmt {
 struct ExpressionStmt : Stmt {
   std::unique_ptr<Expr> expr;
 
-  ExpressionStmt(std::unique_ptr<Expr> expr) : expr(std::move(expr)) {
+  ExpressionStmt(Token token, std::unique_ptr<Expr> expr) : expr(std::move(expr)) {
+    this->token = std::move(token);
   }
 
   virtual StmtType stmt_type() const override {
@@ -210,7 +215,8 @@ struct IfStmt : Stmt {
   std::unique_ptr<BlockStmt> then_body;
   std::unique_ptr<BlockStmt> else_body;
 
-  IfStmt(std::unique_ptr<Expr> condn, std::unique_ptr<BlockStmt> then_bod, std::unique_ptr<BlockStmt> else_bod) : condition{std::move(condn)}, then_body(std::move(then_bod)), else_body(std::move(else_bod)) {
+  IfStmt(Token token, std::unique_ptr<Expr> condn, std::unique_ptr<BlockStmt> then_bod, std::unique_ptr<BlockStmt> else_bod) : condition{std::move(condn)}, then_body(std::move(then_bod)), else_body(std::move(else_bod)) {
+    this->token = std::move(token);
   }
 
   virtual StmtType stmt_type() const override {
@@ -244,8 +250,9 @@ struct DoWhileStmt : Stmt {
   std::unique_ptr<BlockStmt> body;
   std::unique_ptr<Expr> condition;
 
-  DoWhileStmt(std::unique_ptr<BlockStmt> body_, std::unique_ptr<Expr> condition_)
+  DoWhileStmt(Token token, std::unique_ptr<BlockStmt> body_, std::unique_ptr<Expr> condition_)
       : body(std::move(body_)), condition(std::move(condition_)) {
+    this->token = std::move(token);
   }
 
   virtual StmtType stmt_type() const override {
@@ -275,7 +282,8 @@ struct WhileStmt : Stmt {
   std::unique_ptr<Expr> condition;
   std::unique_ptr<BlockStmt> body;
 
-  WhileStmt(std::unique_ptr<Expr> condn, std::unique_ptr<BlockStmt> bod) : condition{std::move(condn)}, body(std::move(bod)) {
+  WhileStmt(Token token, std::unique_ptr<Expr> condn, std::unique_ptr<BlockStmt> bod) : condition{std::move(condn)}, body(std::move(bod)) {
+    this->token = std::move(token);
   }
 
   virtual StmtType stmt_type() const override {
@@ -307,7 +315,8 @@ struct ForStmt : Stmt {
 
   std::unique_ptr<BlockStmt> body;
 
-  ForStmt(std::unique_ptr<Stmt> init, std::unique_ptr<Expr> condn, std::unique_ptr<Stmt> update, std::unique_ptr<BlockStmt> bod) : init_stmt(std::move(init)), condition{std::move(condn)}, update_stmt(std::move(update)), body(std::move(bod)) {
+  ForStmt(Token token, std::unique_ptr<Stmt> init, std::unique_ptr<Expr> condn, std::unique_ptr<Stmt> update, std::unique_ptr<BlockStmt> bod) : init_stmt(std::move(init)), condition{std::move(condn)}, update_stmt(std::move(update)), body(std::move(bod)) {
+    this->token = std::move(token);
   }
 
   virtual StmtType stmt_type() const override {
@@ -348,6 +357,10 @@ struct ForStmt : Stmt {
 };
 
 struct BreakStmt : Stmt {
+  BreakStmt(Token token) {
+    this->token = std::move(token);
+  }
+
   virtual StmtType stmt_type() const override {
     return StmtType::BREAK_STMT;
   }
@@ -359,6 +372,10 @@ struct BreakStmt : Stmt {
 };
 
 struct ContinueStmt : Stmt {
+  ContinueStmt(Token token) {
+    this->token = std::move(token);
+  }
+
   virtual StmtType stmt_type() const override {
     return StmtType::CONTINUE_STMT;
   }
@@ -383,8 +400,9 @@ struct SwitchStmt : Stmt {
   std::vector<SwitchCase> cases;
   std::unique_ptr<BlockStmt> default_body;
 
-  SwitchStmt(std::unique_ptr<Expr> condition_, std::vector<SwitchCase> cases_, std::unique_ptr<BlockStmt> default_body_)
+  SwitchStmt(Token token, std::unique_ptr<Expr> condition_, std::vector<SwitchCase> cases_, std::unique_ptr<BlockStmt> default_body_)
       : condition(std::move(condition_)), cases(std::move(cases_)), default_body(std::move(default_body_)) {
+    this->token = std::move(token);
   }
 
   virtual StmtType stmt_type() const override {
@@ -421,7 +439,8 @@ struct SwitchStmt : Stmt {
 struct StructDeclarationStmt : Stmt {
   std::unique_ptr<StructDecl> declaration;
 
-  explicit StructDeclarationStmt(std::unique_ptr<StructDecl> decl) : declaration(std::move(decl)) {
+  explicit StructDeclarationStmt(Token token, std::unique_ptr<StructDecl> decl) : declaration(std::move(decl)) {
+    this->token = std::move(token);
   }
 
   virtual StmtType stmt_type() const override {
@@ -439,7 +458,8 @@ struct StructDeclarationStmt : Stmt {
 struct UnionDeclarationStmt : Stmt {
   std::unique_ptr<UnionDecl> declaration;
 
-  explicit UnionDeclarationStmt(std::unique_ptr<UnionDecl> decl) : declaration(std::move(decl)) {
+  explicit UnionDeclarationStmt(Token token, std::unique_ptr<UnionDecl> decl) : declaration(std::move(decl)) {
+    this->token = std::move(token);
   }
 
   virtual StmtType stmt_type() const override {
@@ -458,7 +478,8 @@ struct UnionDeclarationStmt : Stmt {
 struct EnumDeclarationStmt : Stmt {
   std::unique_ptr<EnumDecl> declaration;
 
-  explicit EnumDeclarationStmt(std::unique_ptr<EnumDecl> decl) : declaration(std::move(decl)) {
+  explicit EnumDeclarationStmt(Token token, std::unique_ptr<EnumDecl> decl) : declaration(std::move(decl)) {
+    this->token = std::move(token);
   }
 
   virtual StmtType stmt_type() const override {
@@ -483,7 +504,8 @@ struct TypedefDeclarationStmt : Stmt {
   std::unique_ptr<UnionDecl> anonymous_union;
   std::unique_ptr<EnumDecl> anonymous_enum;
 
-  TypedefDeclarationStmt(ParsedType type_, std::string alias_) : aliased_type(std::move(type_)), alias_name(std::move(alias_)) {
+  TypedefDeclarationStmt(Token token, ParsedType type_, std::string alias_) : aliased_type(std::move(type_)), alias_name(std::move(alias_)) {
+    this->token = std::move(token);
   }
 
   virtual StmtType stmt_type() const override {

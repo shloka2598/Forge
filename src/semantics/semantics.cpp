@@ -1,14 +1,13 @@
 #include "semantics.h"
 #include <unordered_set>
 
-void Semantics::error(const std::string &msg) {
+void Semantics::error(const Token &token, const std::string &msg) {
   has_error = true;
-  std::cerr << "Semantics Error: " << msg << std::endl;
-  return;
+  diagnostics.error(msg, token.line, token.column, token.length);
 }
-void Semantics::warning(const std::string &msg) {
-  std::cerr << "Semantics Warning: " << msg << std::endl;
-  return;
+
+void Semantics::warning(const Token &token, const std::string &msg) {
+  diagnostics.warning(msg, token.line, token.column, token.length);
 }
 
 bool Semantics::register_symbol(Scope &scope, SymbolKind kind, const std::string &name, Type *type) {
@@ -22,7 +21,7 @@ void Semantics::analyze_function(FunctionDecl *fn_decl, Scope &parent_scope) {
   fn_decl->resolved_return_type = current_function_return_type;
 
   if (contains_void_object(current_function_return_type) && !same_type(current_function_return_type, &type_context.void_type)) {
-    error("Function cannot return object of void type");
+    error(fn_decl->token, "Function cannot return object of void type");
   }
 
   for (Parameter &param : fn_decl->parameters) {
@@ -30,7 +29,7 @@ void Semantics::analyze_function(FunctionDecl *fn_decl, Scope &parent_scope) {
     param.resolved_type = param_type;
 
     if (!is_complete_type(param_type) && !is_pointer_type(param_type)) {
-      error("Parameter has incomplete type");
+      error(param.token, "Parameter has incomplete type");
     }
 
     param_type = decay(param_type);
@@ -40,22 +39,22 @@ void Semantics::analyze_function(FunctionDecl *fn_decl, Scope &parent_scope) {
     }
 
     if (contains_void_object(param_type) && !param.type.pointer_depth) {
-      error("Object cannot have void type");
+      error(param.token, "Object cannot have void type");
     }
 
     if (param.name.has_value()) {
       if (is_function_type(param_type)) {
-        error("Function parameter cannot have function type");
+        error(param.token, "Function parameter cannot have function type");
       }
       if (!register_symbol(fn_scope, SymbolKind::PARAMETER, *param.name, param_type)) {
-        error("Duplicate parameter " + *param.name);
+        error(param.token, "Duplicate parameter " + *param.name);
       }
     }
   }
   if (fn_decl->body) {
     bool returns = analyze_stmt(fn_decl->body.get(), fn_scope);
     if (!same_type(current_function_return_type, &type_context.void_type) && !returns) {
-      error("Control reaches end of non-void function");
+      error(fn_decl->token, "Control reaches end of non-void function");
     }
   }
 }
@@ -69,29 +68,29 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
     vd_stmt.resolved_type = type;
 
     if (!is_complete_type(type) && !is_pointer_type(type)) {
-      error("Variable has incomplete type");
+      error(vd_stmt.token, "Variable has incomplete type");
     }
     if (contains_void_object(type) && vd_stmt.type.pointer_depth == 0) {
-      error("Object cannot have void type");
+      error(vd_stmt.token, "Object cannot have void type");
     }
     if (!register_symbol(scope, SymbolKind::VARIABLE, vd_stmt.var_name, type)) {
-      error("Duplicate local variable " + vd_stmt.var_name);
+      error(vd_stmt.token, "Duplicate local variable " + vd_stmt.var_name);
     }
     if (is_function_type(type)) {
-      error("Variable cannot have function type");
+      error(vd_stmt.token, "Variable cannot have function type");
     }
 
     if (vd_stmt.expr_ptr) {
       Type *rhs_type = analyze_expr(vd_stmt.expr_ptr.get(), scope);
       rhs_type = default_argument_promotion(decay(rhs_type));
       if (!can_assign(type, rhs_type)) {
-        error("Cannot initialize " + vd_stmt.var_name + " of type " + type->to_string() + " with " + rhs_type->to_string());
+        error(vd_stmt.expr_ptr->token, "Cannot initialize '" + vd_stmt.var_name + "' of type '" + type->to_string() + "' with expression of type '" + rhs_type->to_string() + "'");
       }
     }
 
     if (vd_stmt.init) {
       if (!is_array_type(type)) {
-        error("Brace initializer requires array type");
+        error(vd_stmt.init->token, "Brace initializer requires array type");
       }
       analyze_array_initializer(*vd_stmt.init, type, scope);
     }
@@ -111,7 +110,7 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
 
     for (const auto &statement : block_stmt.statements) {
       if (returned) {
-        warning("Unreachable statement");
+        warning(statement->token, "Unreachable statement");
       }
       returned |= analyze_stmt(statement.get(), block_scope);
     }
@@ -122,13 +121,13 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
 
     if (same_type(current_function_return_type, &type_context.void_type)) {
       if (return_stmt.expr_ptr) {
-        error("Void function cannot return a value");
+        error(return_stmt.token, "Void function cannot return a value");
       }
       return true;
     }
 
     if (!return_stmt.expr_ptr) {
-      error("Missing return value");
+      error(return_stmt.token, "Missing return value");
       return true;
     }
 
@@ -136,7 +135,7 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
     expr_type = decay(expr_type);
     expr_type = default_argument_promotion(expr_type);
     if (!can_assign(current_function_return_type, expr_type)) {
-      error("Cannot return " + expr_type->to_string() + " from function returning " + current_function_return_type->to_string());
+      error(return_stmt.expr_ptr->token, "Cannot return " + expr_type->to_string() + " from function returning " + current_function_return_type->to_string());
     }
 
     return true;
@@ -146,7 +145,7 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
     Type *condition_type = default_argument_promotion(decay(analyze_expr(if_stmt.condition.get(), scope)));
 
     if (!is_scalar_type(condition_type)) {
-      error("Condition must be scalar");
+      error(if_stmt.condition->token, "Condition must have scalar type");
     }
 
     bool then_returns = analyze_stmt(if_stmt.then_body.get(), scope);
@@ -163,7 +162,7 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
     const auto &while_stmt = static_cast<const WhileStmt &>(*stmt);
     Type *condition_type = default_argument_promotion(decay(analyze_expr(while_stmt.condition.get(), scope)));
     if (!is_scalar_type(condition_type)) {
-      error("Condition must be scalar");
+      error(while_stmt.condition->token, "Condition must have scalar type");
     }
     loop_depth++;
     analyze_stmt(while_stmt.body.get(), scope);
@@ -177,7 +176,7 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
     loop_depth--;
     Type *condition_type = default_argument_promotion(decay(analyze_expr(do_stmt.condition.get(), scope)));
     if (!is_scalar_type(condition_type)) {
-      error("Condition must be scalar");
+      error(do_stmt.condition->token, "Condition must have scalar type");
     }
     return false;
   }
@@ -191,7 +190,7 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
       Type *cond_type = default_argument_promotion(decay(analyze_expr(for_stmt.condition.get(), loop_scope)));
 
       if (!is_scalar_type(cond_type)) {
-        error("Condition must be scalar");
+        error(for_stmt.condition->token, "Condition must have scalar type");
       }
     }
 
@@ -212,7 +211,7 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
     cond_type = integer_promotion(cond_type);
 
     if (!is_integer_type(cond_type)) {
-      error("Switch condition must be integer");
+      error(switch_stmt.condition->token, "Switch condition must be integer");
     }
     switch_depth++;
 
@@ -221,14 +220,14 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
     for (const auto &case_stmt : switch_stmt.cases) {
       Type *case_type = integer_promotion(decay(analyze_expr(case_stmt.value.get(), scope)));
       if (!is_integer_type(case_type)) {
-        error("case label must be integer");
+        error(case_stmt.value->token, "case label must have integer type");
       }
       auto value = evaluate_constant_expr(case_stmt.value.get());
 
       if (!value) {
-        error("case label must be a constant expression");
+        error(case_stmt.value->token, "Aase label must be a constant expression");
       } else if (!seen_cases.insert(*value).second) {
-        error("duplicate case label");
+        error(case_stmt.value->token, "Duplicate case label");
       }
       if (!analyze_stmt(case_stmt.body.get(), scope)) {
         all_cases_return = false;
@@ -265,7 +264,7 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
     }
 
     if (st->complete) {
-      error("Redefinition of struct '" + decl->name + "'");
+      error(struct_stmt.token, "Redefinition of struct '" + decl->name + "'");
       return false;
     }
 
@@ -277,23 +276,23 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
       bool ok = true;
 
       if (is_function_type(field_type)) {
-        error("Struct member cannot have function type");
+        error(struct_stmt.token, "Struct member cannot have function type");
         ok = false;
         valid = false;
       }
       if (contains_void_object(field_type) && field.type.pointer_depth == 0) {
-        error("Struct member cannot have void type");
+        error(struct_stmt.token, "Struct member cannot have void type");
         ok = false;
         valid = false;
       }
       if (!is_complete_type(field_type) && !is_pointer_type(field_type)) {
-        error("Struct member has incomplete type");
+        error(struct_stmt.token, "Struct member has incomplete type");
         ok = false;
         valid = false;
       }
 
       if (!member_names.insert(field.name).second) {
-        error("Duplicate member '" + field.name + "'");
+        error(struct_stmt.token, "Duplicate member '" + field.name + "'");
         ok = false;
         valid = false;
       }
@@ -325,7 +324,7 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
     }
 
     if (ut->complete) {
-      error("Redefinition of union '" + decl->name + "'");
+      error(union_stmt.token, "Redefinition of union '" + decl->name + "'");
       return false;
     }
 
@@ -336,23 +335,23 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
       bool ok = true;
       Type *field_type = build_type(field.type, scope);
       if (is_function_type(field_type)) {
-        error("Union member cannot have function type");
+        error(union_stmt.token, "Union member cannot have function type");
         ok = false;
         valid = false;
       }
       if (contains_void_object(field_type) && field.type.pointer_depth == 0) {
-        error("Union member cannot have void type");
+        error(union_stmt.token, "Union member cannot have void type");
         ok = false;
         valid = false;
       }
       if (!is_complete_type(field_type) && !is_pointer_type(field_type)) {
-        error("Union member has incomplete type");
+        error(union_stmt.token, "Union member has incomplete type");
         ok = false;
         valid = false;
       }
 
       if (!member_names.insert(field.name).second) {
-        error("Duplicate member '" + field.name + "'");
+        error(union_stmt.token, "Duplicate member '" + field.name + "'");
         ok = false;
         valid = false;
       }
@@ -388,7 +387,7 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
 
     Type *ret_type = build_type(fn->return_type, scope);
     if (contains_void_object(ret_type) && fn->return_type.pointer_depth == 0 && !same_type(ret_type, &type_context.void_type)) {
-      error("Function cannot return object of void type");
+      error(fn_stmt.token, "Function cannot return object of void type");
     }
     FunctionType *fn_type = type_context.get_function_type(ret_type, std::move(params));
 
@@ -402,17 +401,17 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
       }
     } else {
       if (existing->kind != SymbolKind::FUNCTION) {
-        error(fn->name + " already exists as non-function");
+        error(fn_stmt.token, fn->name + " already exists as non-function");
         return false;
       }
       auto *old_type = static_cast<FunctionType *>(existing->type);
       if (!old_type->equals(fn_type)) {
-        error("Conflicting declarations for function " + fn->name);
+        error(fn_stmt.token, "Conflicting declarations for function " + fn->name);
         return false;
       }
       if (!fn->is_prototype) {
         if (existing->is_defined) {
-          error("Multiple definitions of function " + fn->name);
+          error(fn_stmt.token, "Multiple definitions of function " + fn->name);
           return false;
         }
         existing->is_defined = true;
@@ -432,17 +431,17 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
     glbl->resolved_type = type;
 
     if (!is_complete_type(type) && !is_pointer_type(type)) {
-      error("Variable has incomplete type");
+      error(glbl->token, "Variable has incomplete type");
     }
     if (contains_void_object(type) && glbl->type.pointer_depth == 0) {
-      error("Object cannot have void type");
+      error(glbl->token, "Object cannot have void type");
     }
     if (is_function_type(type)) {
-      error("Variable cannot have function type");
+      error(glbl->token, "Variable cannot have function type");
     }
 
     if (!register_symbol(scope, SymbolKind::VARIABLE, glbl->name, type)) {
-      error("Variable " + glbl->name + " already exists");
+      error(glbl->token, "Variable " + glbl->name + " already exists");
     }
 
     if (glbl->initializer) {
@@ -450,13 +449,14 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
       rhs = default_argument_promotion(decay(rhs));
 
       if (!can_assign(type, rhs)) {
-        error("rhs not assignable");
+        error(glbl->initializer->token,
+              "Cannot initialize '" + glbl->name + "' of type '" + type->to_string() + "' with expression of type '" + rhs->to_string() + "'");
       }
     }
 
     if (glbl->array_initializer) {
       if (!is_array_type(type)) {
-        error("Brace initializer requires array type");
+        error(glbl->array_initializer->token, "Brace initializer requires array type");
       }
 
       analyze_array_initializer(*glbl->array_initializer, type, scope);
@@ -480,7 +480,7 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
     }
 
     if (!et->constants.empty()) {
-      error("Redefinition of enum '" + decl->name + "'");
+      error(enum_stmt.token, "Redefinition of enum '" + decl->name + "'");
       return false;
     }
 
@@ -490,7 +490,7 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
 
     for (const auto &member : decl->members) {
       if (!enumerator_names.insert(member.name).second) {
-        error("Duplicate enumerator '" + member.name + "'");
+        error(enum_stmt.token, "Duplicate enumerator '" + member.name + "'");
         continue;
       }
 
@@ -498,7 +498,7 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
         auto value = evaluate_constant_expr(member.value.get());
 
         if (!value) {
-          error("Enumerator '" + member.name + "' is not a constant expression");
+          error(member.value->token, "Enumerator '" + member.name + "' is not a constant expression");
           continue;
         }
 
@@ -517,7 +517,7 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
       et->constants.push_back({member.name, current_value});
 
       if (!scope.insert(constant)) {
-        error("Enumerator '" + member.name + "' already exists");
+        error(enum_stmt.token, "Enumerator '" + member.name + "' already exists");
       }
 
       ++current_value;
@@ -544,22 +544,22 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
         bool ok = true;
 
         if (is_function_type(field_type)) {
-          error("Struct member cannot have function type");
+          error(typedef_stmt.token, "Struct member cannot have function type");
           ok = valid = false;
         }
 
         if (contains_void_object(field_type) && field.type.pointer_depth == 0) {
-          error("Struct member cannot have void type");
+          error(typedef_stmt.token, "Struct member cannot have void type");
           ok = valid = false;
         }
 
         if (!is_complete_type(field_type) && !is_pointer_type(field_type)) {
-          error("Struct member has incomplete type");
+          error(typedef_stmt.token, "Struct member has incomplete type");
           ok = valid = false;
         }
 
         if (!member_names.insert(field.name).second) {
-          error("Duplicate member '" + field.name + "'");
+          error(typedef_stmt.token, "Duplicate member '" + field.name + "'");
           ok = valid = false;
         }
 
@@ -586,22 +586,22 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
         bool ok = true;
 
         if (is_function_type(field_type)) {
-          error("Union member cannot have function type");
+          error(typedef_stmt.token, "Union member cannot have function type");
           ok = valid = false;
         }
 
         if (contains_void_object(field_type) && field.type.pointer_depth == 0) {
-          error("Union member cannot have void type");
+          error(typedef_stmt.token, "Union member cannot have void type");
           ok = valid = false;
         }
 
         if (!is_complete_type(field_type) && !is_pointer_type(field_type)) {
-          error("Union member has incomplete type");
+          error(typedef_stmt.token, "Union member has incomplete type");
           ok = valid = false;
         }
 
         if (!member_names.insert(field.name).second) {
-          error("Duplicate member '" + field.name + "'");
+          error(typedef_stmt.token, "Duplicate member '" + field.name + "'");
           ok = valid = false;
         }
 
@@ -621,7 +621,7 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
       et = static_cast<EnumType *>(sym->type);
 
       if (!et->constants.empty()) {
-        error("Redefinition of enum '" + typedef_stmt.alias_name + "'");
+        error(typedef_stmt.token, "Redefinition of enum '" + typedef_stmt.alias_name + "'");
       } else {
 
         int64_t current_value = 0;
@@ -629,14 +629,14 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
 
         for (const auto &member : typedef_stmt.anonymous_enum->members) {
           if (!enumerator_names.insert(member.name).second) {
-            error("Duplicate enumerator '" + member.name + "'");
+            error(typedef_stmt.token, "Duplicate enumerator '" + member.name + "'");
             continue;
           }
 
           if (member.value) {
             auto value = evaluate_constant_expr(member.value.get());
             if (!value) {
-              error("Enumerator '" + member.name + "' is not a constant expression");
+              error(member.value->token, "Enumerator '" + member.name + "' is not a constant expression");
               continue;
             }
             current_value = *value;
@@ -653,7 +653,7 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
           et->constants.push_back({member.name, current_value});
 
           if (!scope.insert(constant)) {
-            error("Enumerator '" + member.name + "' already exists");
+            error(typedef_stmt.token, "Enumerator '" + member.name + "' already exists");
           }
 
           ++current_value;
@@ -708,20 +708,23 @@ bool Semantics::analyze_stmt(Stmt *stmt, Scope &scope) {
     symbol.type = type;
 
     if (!scope.insert(symbol)) {
-      error("Redefinition of typedef " + typedef_stmt.alias_name);
+      error(typedef_stmt.token, "Redefinition of typedef '" + typedef_stmt.alias_name + "'");
     }
 
     return false;
   }
   case StmtType::BREAK_STMT: {
+    const auto &break_stmt = static_cast<const BreakStmt &>(*stmt);
+
     if (loop_depth == 0 && switch_depth == 0) {
-      error("break statement not inside loop or switch");
+      error(break_stmt.token, "break statement not inside loop or switch");
     }
     return false;
   }
   case StmtType::CONTINUE_STMT: {
+    const auto &continue_stmt = static_cast<const ContinueStmt &>(*stmt);
     if (loop_depth == 0) {
-      error("continue statement not inside loop");
+      error(continue_stmt.token, "continue statement not inside loop");
     }
     return false;
   }
@@ -738,7 +741,7 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
     const IdentifierExpr &var_expr = static_cast<const IdentifierExpr &>(*expr);
     Symbol *sym = scope.lookup_identifier(var_expr.identifier_name);
     if (!sym) {
-      error("Use of unresolved identifier " + var_expr.identifier_name);
+      error(var_expr.token, "Use of unresolved identifier " + var_expr.identifier_name);
       return &type_context.error_type;
     }
 
@@ -759,7 +762,7 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
     Type *rhs_type = default_argument_promotion(decay(analyze_expr(asgn_expr.rhs.get(), scope)));
 
     if (!is_modifiable_lvalue(asgn_expr.lhs.get())) {
-      error("Expression is not a modifiable lvalue");
+      error(asgn_expr.lhs->token, "Expression is not a modifiable lvalue");
       return &type_context.error_type;
     }
 
@@ -768,7 +771,7 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
     }
 
     if (!can_assign(lhs_type, rhs_type)) {
-      error("Cannot assign " + rhs_type->to_string() + " to " + lhs_type->to_string());
+      error(asgn_expr.rhs->token, "Cannot assign expression of type '" + rhs_type->to_string() + "' to object of type '" + lhs_type->to_string() + "'");
       return &type_context.error_type;
     }
 
@@ -800,7 +803,7 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
     Type *target_type = build_type(cast_expr.target_type, scope);
 
     if (!can_explicitly_cast(operand_type, target_type)) {
-      error("Invalid cast");
+      error(cast_expr.expr->token, "Invalid cast");
       return &type_context.error_type;
     }
 
@@ -816,12 +819,12 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
     Type *operand_type = analyze_expr(increment_expr.operand.get(), scope);
 
     if (operand_type->kind == TypeKind::ARRAY) {
-      error("Cannot increment array");
+      error(increment_expr.operand->token, "Cannot increment array");
       return &type_context.error_type;
     }
 
     if (!is_modifiable_lvalue(increment_expr.operand.get())) {
-      error("Operand of ++ or -- must be a modifiable lvalue");
+      error(increment_expr.operand->token, "Operand of ++ or -- must be a modifiable lvalue");
       return &type_context.error_type;
     }
 
@@ -830,11 +833,11 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
     } else if (operand_type->kind == TypeKind::POINTER) {
       auto *ptr = static_cast<PointerType *>(operand_type);
       if (contains_void_object(ptr->pointee_type)) {
-        error("Cannot increment void*");
+        error(increment_expr.operand->token, "Cannot increment void *");
         return &type_context.error_type;
       }
     } else {
-      error("++ or -- requires arithmetic or pointer type");
+      error(increment_expr.operand->token, "++ or -- requires arithmetic or pointer type");
       return &type_context.error_type;
     }
 
@@ -847,7 +850,7 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
     Type *condition_type = decay(analyze_expr(conditional_expr.condition.get(), scope));
 
     if (!is_scalar_type(condition_type)) {
-      error("Condition must be scalar");
+      error(conditional_expr.condition->token, "Condition must have scalar type");
     }
 
     Type *true_type = decay(analyze_expr(conditional_expr.true_expr.get(), scope));
@@ -860,13 +863,13 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
       result = usual_arithmetic_conversion(true_type, false_type);
     } else if (is_pointer_type(true_type) && is_pointer_type(false_type)) {
       if (!is_comparable_pointer_types(true_type, false_type)) {
-        error("Incompatible pointer operands to ?: (Conditional operator)");
+        error(conditional_expr.false_expr->token, "Incompatible pointer operands to ?:");
         result = &type_context.error_type;
       } else {
         result = composite_pointer_type(true_type, false_type);
       }
     } else {
-      error("Incompatible operands to ?: (Conditional operator)");
+      error(conditional_expr.false_expr->token, "Incompatible operands to ?:");
       result = &type_context.error_type;
     }
 
@@ -880,14 +883,14 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
     Symbol *sym = scope.lookup_identifier(fn_call_expr.function_name);
 
     if (!sym || (sym->kind != SymbolKind::FUNCTION)) {
-      error("Call to undefined function " + fn_call_expr.function_name);
+      error(fn_call_expr.token, "Call to undefined function '" + fn_call_expr.function_name + "'");
       return &type_context.error_type;
     }
 
     auto *fn_type = static_cast<FunctionType *>(sym->type);
 
     if (fn_call_expr.arguments.size() != fn_type->parameter_types.size()) {
-      error("Wrong number of arguments");
+      error(fn_call_expr.token, "Wrong number of arguments");
       expr->type = &type_context.error_type;
       return &type_context.error_type;
     }
@@ -896,7 +899,7 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
       Type *arg_type = analyze_expr(fn_call_expr.arguments[i].get(), scope);
       arg_type = default_argument_promotion(decay(arg_type));
       if (!can_assign(fn_type->parameter_types[i], arg_type)) {
-        error("Cannot convert " + arg_type->to_string() + " to " + fn_type->parameter_types[i]->to_string());
+        error(fn_call_expr.arguments[i]->token, "Cannot convert expression of type '" + arg_type->to_string() + "' to parameter of type '" + fn_type->parameter_types[i]->to_string() + "'");
         return &type_context.error_type;
       }
     }
@@ -915,14 +918,14 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
     index_type = integer_promotion(index_type);
 
     if (!is_integer_type(index_type)) {
-      error("Array index should be an integer type");
+      error(arr_access_expr.index_expr->token, "Array index must have integer type");
       return &type_context.error_type;
     }
 
     if (is_pointer_type(base_type)) {
       auto *ptr = static_cast<PointerType *>(base_type);
       if (contains_void_object(ptr->pointee_type)) {
-        error("Cannot index void*");
+        error(arr_access_expr.base_expr->token, "Cannot index void *");
         return &type_context.error_type;
       }
       expr->type = ptr->pointee_type;
@@ -930,7 +933,7 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
       return ptr->pointee_type;
     }
 
-    error("[] is used on an non array or pointer object.");
+    error(arr_access_expr.base_expr->token, "Subscripted value is not an array or pointer");
     return &type_context.error_type;
 
     break;
@@ -942,20 +945,20 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
 
     if (member_access.op == TokenType::DOT) {
       if (base_type->kind != TypeKind::STRUCT && base_type->kind != TypeKind::UNION) {
-        error("'.' requires struct or union operand");
+        error(member_access.base_expr->token, "'.' requires struct or union operand");
         return &type_context.error_type;
       }
     } else {
       // ->
       base_type = decay(base_type);
       if (!is_pointer_type(base_type)) {
-        error("'->' requires pointer operand");
+        error(member_access.base_expr->token, "'->' requires pointer operand");
         return &type_context.error_type;
       }
       auto *ptr = static_cast<PointerType *>(base_type);
       base_type = ptr->pointee_type;
       if (base_type->kind != TypeKind::STRUCT && base_type->kind != TypeKind::UNION) {
-        error("'->' requires pointer to struct or union");
+        error(member_access.base_expr->token, "'->' requires pointer to struct or union");
         return &type_context.error_type;
       }
     }
@@ -969,7 +972,7 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
           return member.type;
         }
       }
-      error("No member named '" + member_access.member_name + "' in struct " + st->name);
+      error(member_access.token, "No member named '" + member_access.member_name + "' in struct '" + st->name + "'");
       return &type_context.error_type;
     }
 
@@ -983,7 +986,7 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
       }
     }
 
-    error("No member named '" + member_access.member_name + "' in union " + ut->name);
+    error(member_access.token, "No member named '" + member_access.member_name + "' in union '" + ut->name + "'");
 
     return &type_context.error_type;
   }
@@ -993,7 +996,7 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
     if (sizeof_expr.parsed_type) {
       Type *type = build_type(*sizeof_expr.parsed_type, scope);
       if (!is_complete_type(type)) {
-        error("sizeof requires a complete object type");
+        error(sizeof_expr.token, "sizeof requires a complete object type");
         expr->type = &type_context.error_type;
         expr->value_category = ValueCategory::RVALUE;
         return &type_context.error_type;
@@ -1001,7 +1004,7 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
     } else {
       Type *type = analyze_expr(sizeof_expr.expr.get(), scope);
       if (!is_complete_type(type)) {
-        error("sizeof requires a complete object type");
+        error(sizeof_expr.token, "sizeof requires a complete object type");
         expr->type = &type_context.error_type;
         expr->value_category = ValueCategory::RVALUE;
         return &type_context.error_type;
@@ -1036,7 +1039,7 @@ Type *Semantics::analyze_expr(Expr *expr, Scope &scope) {
     return ptr;
   }
   default: {
-    error("Unknown expression type");
+    error(expr->token, "Unknown expression type");
     return &type_context.error_type;
   }
   }
@@ -1058,12 +1061,12 @@ Type *Semantics::analyze_binary_expr(const BinaryExpr &binary_expr, Scope &scope
     if (lhs_type->kind == TypeKind::POINTER && is_integer_type(integer_promotion(rhs_type))) {
       auto *ptr = static_cast<PointerType *>(lhs_type);
       if (contains_void_object(ptr->pointee_type)) {
-        error("Pointer arithmetic on void*");
+        error(binary_expr.left_expr->token, "Pointer arithmetic on void *");
         return &type_context.error_type;
       }
 
       if (!is_complete_type(ptr->pointee_type)) {
-        error("Pointer arithmetic requires complete object type");
+        error(binary_expr.left_expr->token, "Pointer arithmetic requires complete object type");
         return &type_context.error_type;
       }
 
@@ -1073,12 +1076,12 @@ Type *Semantics::analyze_binary_expr(const BinaryExpr &binary_expr, Scope &scope
     if (rhs_type->kind == TypeKind::POINTER && is_integer_type(integer_promotion(lhs_type))) {
       auto *ptr = static_cast<PointerType *>(rhs_type);
       if (contains_void_object(ptr->pointee_type)) {
-        error("Pointer arithmetic on void*");
+        error(binary_expr.right_expr->token, "Pointer arithmetic on void *");
         return &type_context.error_type;
       }
 
       if (!is_complete_type(ptr->pointee_type)) {
-        error("Pointer arithmetic requires complete object type");
+        error(binary_expr.right_expr->token, "Pointer arithmetic requires complete object type");
         return &type_context.error_type;
       }
 
@@ -1086,13 +1089,20 @@ Type *Semantics::analyze_binary_expr(const BinaryExpr &binary_expr, Scope &scope
     }
 
     if (lhs_type->kind == TypeKind::POINTER && rhs_type->kind == TypeKind::POINTER) {
-      error("Cannot add two pointers");
+      error(binary_expr.token, "Cannot add two pointers");
       return &type_context.error_type;
     }
 
     if (lhs_type->kind == TypeKind::POINTER || rhs_type->kind == TypeKind::POINTER) {
-      error("Invalid pointer addition");
-      return &type_context.error_type;
+      if (lhs_type->kind == TypeKind::POINTER) {
+        error(binary_expr.right_expr->token, "Pointer can only be added to an integer");
+        return &type_context.error_type;
+      }
+
+      if (rhs_type->kind == TypeKind::POINTER) {
+        error(binary_expr.left_expr->token, "Pointer can only be added to an integer");
+        return &type_context.error_type;
+      }
     }
 
     return usual_arithmetic_conversion(lhs_type, rhs_type);
@@ -1103,12 +1113,12 @@ Type *Semantics::analyze_binary_expr(const BinaryExpr &binary_expr, Scope &scope
       auto *ptr = static_cast<PointerType *>(lhs_type);
 
       if (contains_void_object(ptr->pointee_type)) {
-        error("Pointer arithmetic on void*");
+        error(binary_expr.left_expr->token, "Pointer arithmetic on void *");
         return &type_context.error_type;
       }
 
       if (!is_complete_type(ptr->pointee_type)) {
-        error("Pointer arithmetic requires complete object type");
+        error(binary_expr.left_expr->token, "Pointer arithmetic requires complete object type");
         return &type_context.error_type;
       }
 
@@ -1120,22 +1130,22 @@ Type *Semantics::analyze_binary_expr(const BinaryExpr &binary_expr, Scope &scope
       auto *rp = static_cast<PointerType *>(rhs_type);
 
       if (contains_void_object(lp->pointee_type) || contains_void_object(rp->pointee_type)) {
-        error("Pointer subtraction on void*");
+        error(binary_expr.token, "Pointer subtraction on void *");
         return &type_context.error_type;
       }
 
       if (!is_complete_type(lp->pointee_type) || !is_complete_type(rp->pointee_type)) {
-        error("Pointer subtraction requires complete object type");
+        error(binary_expr.token, "Pointer subtraction requires complete object type");
         return &type_context.error_type;
       }
 
       if (!compatible_pointer_types(lhs_type, rhs_type)) {
-        error("Pointer subtraction requires compatible object types");
+        error(binary_expr.token, "Pointer subtraction requires compatible object types");
         return &type_context.error_type;
       }
 
       if (!lp->pointee_type->equals(rp->pointee_type)) {
-        error("Pointer subtraction requires identical element types");
+        error(binary_expr.token, "Pointer subtraction requires identical element types");
         return &type_context.error_type;
       }
 
@@ -1143,8 +1153,15 @@ Type *Semantics::analyze_binary_expr(const BinaryExpr &binary_expr, Scope &scope
     }
 
     if (lhs_type->kind == TypeKind::POINTER || rhs_type->kind == TypeKind::POINTER) {
-      error("Invalid pointer subtraction");
-      return &type_context.error_type;
+      if (lhs_type->kind == TypeKind::POINTER) {
+        error(binary_expr.right_expr->token, "Pointer can only be subtracted by an integer or compatible pointer");
+        return &type_context.error_type;
+      }
+
+      if (rhs_type->kind == TypeKind::POINTER) {
+        error(binary_expr.left_expr->token, "Only pointers can be subtracted by pointers");
+        return &type_context.error_type;
+      }
     }
 
     return usual_arithmetic_conversion(lhs_type, rhs_type);
@@ -1152,7 +1169,7 @@ Type *Semantics::analyze_binary_expr(const BinaryExpr &binary_expr, Scope &scope
 
   case TokenType::MULTIPLY: {
     if (!is_arithmetic_type(lhs_type) || !is_arithmetic_type(rhs_type)) {
-      error("* requires arithmetic operands");
+      error(binary_expr.token, "'*' requires arithmetic operands");
       return &type_context.error_type;
     }
 
@@ -1163,7 +1180,7 @@ Type *Semantics::analyze_binary_expr(const BinaryExpr &binary_expr, Scope &scope
   }
   case TokenType::DIVIDE: {
     if (!is_arithmetic_type(lhs_type) || !is_arithmetic_type(rhs_type)) {
-      error("/ requires arithmetic operands");
+      error(binary_expr.token, "'/' requires arithmetic operands");
       return &type_context.error_type;
     }
     lhs_type = integer_promotion(lhs_type);
@@ -1173,7 +1190,7 @@ Type *Semantics::analyze_binary_expr(const BinaryExpr &binary_expr, Scope &scope
 
   case TokenType::MODULO: {
     if (!is_integer_type(lhs_type) || !is_integer_type(rhs_type)) {
-      error("% requires integer operands");
+      error(binary_expr.token, "'%' requires integer operands");
       return &type_context.error_type;
     }
 
@@ -1200,7 +1217,7 @@ Type *Semantics::analyze_binary_expr(const BinaryExpr &binary_expr, Scope &scope
 
     if (lhs_type->kind == TypeKind::POINTER && rhs_type->kind == TypeKind::POINTER) {
       if (!is_comparable_pointer_types(lhs_type, rhs_type)) {
-        error("Comparison of incompatible pointers");
+        error(binary_expr.token, "Comparison of incompatible pointers");
         return &type_context.error_type;
       }
 
@@ -1215,18 +1232,26 @@ Type *Semantics::analyze_binary_expr(const BinaryExpr &binary_expr, Scope &scope
     }
 
     if (lhs_type->kind == TypeKind::POINTER || rhs_type->kind == TypeKind::POINTER) {
-      error("Comparison between pointer and non-pointer");
-      return &type_context.error_type;
+      if (lhs_type->kind == TypeKind::POINTER) {
+        error(binary_expr.right_expr->token, "Pointer can only be compared with another pointer or a null pointer constant");
+        return &type_context.error_type;
+      }
+
+      if (rhs_type->kind == TypeKind::POINTER) {
+        error(binary_expr.left_expr->token, "Pointer can only be compared with another pointer or a null pointer constant");
+        return &type_context.error_type;
+      }
     }
 
-    error("Invalid comparison");
+    error(binary_expr.token, "Invalid comparison");
     return &type_context.error_type;
   }
   // logical
   case TokenType::DOUBLE_AMPERSAND:
-  case TokenType::DOUBLE_PIPE:
+  case TokenType::DOUBLE_PIPE: {
+
     if ((!is_scalar_type(lhs_type)) || (!is_scalar_type(rhs_type))) {
-      error("Logical operator requires scalar operands");
+      error(binary_expr.token, "Logical operators require scalar operands");
       return &type_context.error_type;
     }
 
@@ -1234,11 +1259,12 @@ Type *Semantics::analyze_binary_expr(const BinaryExpr &binary_expr, Scope &scope
     rhs_type = decay(rhs_type);
 
     return &type_context.int_type;
+  }
 
   case TokenType::LEFT_SHIFT:
   case TokenType::RIGHT_SHIFT: {
     if (!is_integer_type(lhs_type) || !is_integer_type(rhs_type)) {
-      error("Shift operators require integer operands");
+      error(binary_expr.token, "Shift operators require integer operands");
       return &type_context.error_type;
     }
 
@@ -1246,7 +1272,7 @@ Type *Semantics::analyze_binary_expr(const BinaryExpr &binary_expr, Scope &scope
     rhs_type = integer_promotion(rhs_type);
 
     if (!is_integer_type(lhs_type) || !is_integer_type(rhs_type)) {
-      error("Shift operators require integer operands");
+      error(binary_expr.token, "Shift operators require integer operands");
       return &type_context.error_type;
     }
 
@@ -1257,7 +1283,7 @@ Type *Semantics::analyze_binary_expr(const BinaryExpr &binary_expr, Scope &scope
   case TokenType::PIPE:
   case TokenType::CARET: {
     if (!is_integer_type(lhs_type) || !is_integer_type(rhs_type)) {
-      error("Bitwise operators require integer operands");
+      error(binary_expr.token, "Bitwise operators require integer operands");
       return &type_context.error_type;
     }
 
@@ -1270,7 +1296,7 @@ Type *Semantics::analyze_binary_expr(const BinaryExpr &binary_expr, Scope &scope
     return rhs_type;
   }
   default:
-    error("Unsupported binary operator");
+    error(binary_expr.token, "Unsupported binary operator");
     return &type_context.error_type;
   }
 }
@@ -1291,7 +1317,7 @@ Type *Semantics::analyze_unary_expr(UnaryExpr &unary_expr, Scope &scope) {
   case TokenType::MINUS: {
     operand = decay(operand);
     if (!is_arithmetic_type(operand)) {
-      error("Unary +/- requires arithmetic operand");
+      error(unary_expr.token, "Unary +/- requires arithmetic operand");
       return &type_context.error_type;
     }
 
@@ -1303,7 +1329,7 @@ Type *Semantics::analyze_unary_expr(UnaryExpr &unary_expr, Scope &scope) {
   case TokenType::EXCLAMATION: {
     operand = decay(operand);
     if (!is_scalar_type(operand)) {
-      error("! requires scalar operand");
+      error(unary_expr.token, "! requires scalar operand");
       return &type_context.error_type;
     }
 
@@ -1313,7 +1339,7 @@ Type *Semantics::analyze_unary_expr(UnaryExpr &unary_expr, Scope &scope) {
 
   case TokenType::AMPERSAND: {
     if (unary_expr.right_expr->value_category != ValueCategory::LVALUE) {
-      error("& requires lvalue");
+      error(unary_expr.token, "'&' requires an lvalue");
       return &type_context.error_type;
     }
     unary_expr.value_category = ValueCategory::RVALUE;
@@ -1323,7 +1349,7 @@ Type *Semantics::analyze_unary_expr(UnaryExpr &unary_expr, Scope &scope) {
 
   case TokenType::MULTIPLY: {
     if (operand->kind != TypeKind::POINTER) {
-      error("Cannot dereference non-pointer");
+      error(unary_expr.token, "Cannot dereference non-pointer");
       return &type_context.error_type;
     }
 
@@ -1335,12 +1361,12 @@ Type *Semantics::analyze_unary_expr(UnaryExpr &unary_expr, Scope &scope) {
     }
 
     if (contains_void_object(ptr->pointee_type)) {
-      error("Cannot dereference void*");
+      error(unary_expr.token, "Cannot dereference void*");
       return &type_context.error_type;
     }
 
     if (!is_complete_type(ptr->pointee_type)) {
-      error("Cannot dereference incomplete type");
+      error(unary_expr.token, "Cannot dereference incomplete type");
       return &type_context.error_type;
     }
 
@@ -1352,7 +1378,7 @@ Type *Semantics::analyze_unary_expr(UnaryExpr &unary_expr, Scope &scope) {
   case TokenType::TILDE: {
     operand = decay(operand);
     if (!is_integer_type(operand)) {
-      error("~ requires integer operand");
+      error(unary_expr.token, "Cannot dereference incomplete type");
       return &type_context.error_type;
     }
 
@@ -1362,7 +1388,7 @@ Type *Semantics::analyze_unary_expr(UnaryExpr &unary_expr, Scope &scope) {
   }
 
   default: {
-    error("Unknown unary operator");
+    error(unary_expr.token, "Unknown unary operator");
     return &type_context.error_type;
   }
   }
@@ -1372,17 +1398,17 @@ void Semantics::analyze_array_initializer(const ArrayInitializer &init, Type *ex
   if (init.is_leaf) {
     Type *expr_type = decay(analyze_expr(init.expr.get(), scope));
     if (!can_assign(expected_type, expr_type)) {
-      error("Invalid array initializer");
+      error(init.expr->token, "Invalid array initializer");
     }
     return;
   }
   if (expected_type->kind != TypeKind::ARRAY) {
-    error("Too many initializer braces");
+    error(init.token, "Too many initializer braces");
     return;
   }
   auto *array_type = static_cast<ArrayType *>(expected_type);
   if (init.children.size() > array_type->size) {
-    error("Too many initializers");
+    error(init.token, "Too many initializers");
     return;
   }
   for (const auto &child : init.children) {
@@ -1422,11 +1448,5 @@ void Semantics::analyze() {
       analyze_stmt(stmt.get(), global_scope);
       break;
     }
-  }
-
-  if (!has_error) {
-    // std::cerr << "Semantics Analyzer passed successfully\n";
-  } else {
-    std::cerr << "Semantics Analyzer failed\n";
   }
 }

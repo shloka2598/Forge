@@ -445,28 +445,28 @@ bool Semantics::contains_void_object(Type *type) {
   }
 }
 
-Type *Semantics::lookup_tag_type(Scope &scope, const std::string &name, SymbolKind expected_kind) {
+Type *Semantics::lookup_tag_type(Scope &scope, const Token &token, const std::string &name, SymbolKind expected_kind) {
   Symbol *sym = scope.lookup_tag(name);
 
   if (!sym) {
     switch (expected_kind) {
     case SymbolKind::STRUCT: {
-      error("Unknown struct '" + name + "'");
+      error(token, "Unknown struct '" + name + "'");
       break;
     }
 
     case SymbolKind::UNION: {
-      error("Unknown union '" + name + "'");
+      error(token, "Unknown union '" + name + "'");
       break;
     }
 
     case SymbolKind::ENUM: {
-      error("Unknown enum '" + name + "'");
+      error(token, "Unknown enum '" + name + "'");
       break;
     }
 
     default: {
-      error("Unknown tag '" + name + "'");
+      error(token, "Unknown tag '" + name + "'");
       break;
     }
     }
@@ -475,11 +475,9 @@ Type *Semantics::lookup_tag_type(Scope &scope, const std::string &name, SymbolKi
   }
 
   if (sym->kind != expected_kind) {
-    error("Tag '" + name + "' has wrong kind");
+    error(token, "Tag '" + name + "' has wrong kind");
     return &type_context.error_type;
   }
-
-  return sym->type;
 
   return sym->type;
 }
@@ -507,22 +505,22 @@ Type *Semantics::build_type(const ParsedType &parsed, Scope &scope) {
     break;
 
   case DataType::STRUCT: {
-    type = lookup_tag_type(scope, parsed.custom_name, SymbolKind::STRUCT);
+    type = lookup_tag_type(scope, parsed.token, parsed.custom_name, SymbolKind::STRUCT);
     break;
   }
   case DataType::UNION: {
-    type = lookup_tag_type(scope, parsed.custom_name, SymbolKind::UNION);
+    type = lookup_tag_type(scope, parsed.token, parsed.custom_name, SymbolKind::UNION);
     break;
   }
   case DataType::ENUM: {
-    type = lookup_tag_type(scope, parsed.custom_name, SymbolKind::ENUM);
+    type = lookup_tag_type(scope, parsed.token, parsed.custom_name, SymbolKind::ENUM);
     break;
   }
   case DataType::TYPEDEF_NAME: {
     Symbol *sym = scope.lookup_identifier(parsed.custom_name);
 
     if (!sym || sym->kind != SymbolKind::TYPEDEF) {
-      error("Unknown typedef '" + parsed.custom_name + "'");
+      error(parsed.token, "Unknown typedef '" + parsed.custom_name + "'");
       return &type_context.error_type;
     }
 

@@ -1,9 +1,10 @@
 #include "parser.h"
 
 std::unique_ptr<ReturnStmt> Parser::parseReturnStmt() {
+  auto return_tok = consume();
   if (peek() && peek()->tokentype == TokenType::SEMI_COLON) {
     consume();
-    return std::make_unique<ReturnStmt>(nullptr);
+    return std::make_unique<ReturnStmt>(*return_tok, nullptr);
   }
 
   std::unique_ptr<Expr> expr = parseExpr();
@@ -17,7 +18,7 @@ std::unique_ptr<ReturnStmt> Parser::parseReturnStmt() {
     return nullptr;
   }
 
-  return std::make_unique<ReturnStmt>(std::move(expr));
+  return std::make_unique<ReturnStmt>(*return_tok, std::move(expr));
 }
 
 std::unique_ptr<VariableDeclarationStmt> Parser::parseVariableDeclarationStmt() {
@@ -28,15 +29,15 @@ std::unique_ptr<VariableDeclarationStmt> Parser::parseVariableDeclarationStmt() 
   }
 
   if (pending_struct) {
-    program.statements.push_back(std::make_unique<StructDeclarationStmt>(std::move(pending_struct)));
+    program.statements.push_back(std::make_unique<StructDeclarationStmt>(pending_struct->token, std::move(pending_struct)));
   }
 
   if (pending_union) {
-    program.statements.push_back(std::make_unique<UnionDeclarationStmt>(std::move(pending_union)));
+    program.statements.push_back(std::make_unique<UnionDeclarationStmt>(pending_union->token, std::move(pending_union)));
   }
 
   if (pending_enum) {
-    program.statements.push_back(std::make_unique<EnumDeclarationStmt>(std::move(pending_enum)));
+    program.statements.push_back(std::make_unique<EnumDeclarationStmt>(pending_enum->token, std::move(pending_enum)));
   }
 
   parsePointerSuffix(type);
@@ -46,7 +47,8 @@ std::unique_ptr<VariableDeclarationStmt> Parser::parseVariableDeclarationStmt() 
     return nullptr;
   }
 
-  std::string var_name = consume()->value.value();
+  auto name_token = consume();
+  std::string var_name = name_token->value.value();
 
   while (peek() && peek()->tokentype == TokenType::SQUARE_BRACKETS_OPEN) {
     consume();
@@ -87,7 +89,7 @@ std::unique_ptr<VariableDeclarationStmt> Parser::parseVariableDeclarationStmt() 
     return nullptr;
   }
 
-  return std::make_unique<VariableDeclarationStmt>(std::move(type), std::move(var_name), std::move(expr_ptr), std::move(array_initializer));
+  return std::make_unique<VariableDeclarationStmt>(*name_token, std::move(type), std::move(var_name), std::move(expr_ptr), std::move(array_initializer));
 }
 
 std::unique_ptr<ExpressionStmt> Parser::parseExpressionStmt() {
@@ -101,7 +103,7 @@ std::unique_ptr<ExpressionStmt> Parser::parseExpressionStmt() {
     return nullptr;
   }
 
-  return std::make_unique<ExpressionStmt>(std::move(expr));
+  return std::make_unique<ExpressionStmt>(expr->token, std::move(expr));
 }
 
 std::unique_ptr<Stmt> Parser::parse_stmt() {
@@ -115,7 +117,6 @@ std::unique_ptr<Stmt> Parser::parse_stmt() {
   if (tok == TokenType::BRACES_OPEN) {
     stmt = parseBlock();
   } else if (tok == TokenType::RETURN) {
-    consume();
     stmt = parseReturnStmt();
   } else if (tok == TokenType::UNION || tok == TokenType::STRUCT || tok == TokenType::ENUM) {
     stmt = parseVariableDeclarationStmt();
@@ -171,28 +172,32 @@ std::unique_ptr<Stmt> Parser::parse_stmt() {
 }
 
 std::unique_ptr<Stmt> Parser::parseBreakStmt() {
-  consume(); // break
+  auto tok = consume(); // break
   if (!match(TokenType::SEMI_COLON)) {
     return nullptr;
   }
-  return std::make_unique<BreakStmt>();
+  return std::make_unique<BreakStmt>(*tok);
 }
 
 std::unique_ptr<Stmt> Parser::parseContinueStmt() {
-  consume(); // continue
+  auto tok = consume(); // continue
   if (!match(TokenType::SEMI_COLON)) {
     return nullptr;
   }
-  return std::make_unique<ContinueStmt>();
+  return std::make_unique<ContinueStmt>(*tok);
 }
 
 std::unique_ptr<StructDeclarationStmt> Parser::parseStructDeclarationStmt() {
-  consume(); // struct
+  auto keyword_tok = consume(); // struct
+
+  Token struct_token = *keyword_tok;
 
   std::string name;
 
   if (peek() && peek()->tokentype == TokenType::IDENTIFIER) {
-    name = consume()->value.value();
+    auto name_tok = consume();
+    struct_token = *name_tok;
+    name = name_tok->value.value();
   }
 
   auto decl = parseStructDeclaration(name);
@@ -200,14 +205,20 @@ std::unique_ptr<StructDeclarationStmt> Parser::parseStructDeclarationStmt() {
     return nullptr;
   }
 
-  return std::make_unique<StructDeclarationStmt>(std::move(decl));
+  return std::make_unique<StructDeclarationStmt>(struct_token, std::move(decl));
 }
 
 std::unique_ptr<UnionDeclarationStmt> Parser::parseUnionDeclarationStmt() {
-  consume(); // union
+  auto keyword_tok = consume(); // union
+
+  Token union_token = *keyword_tok;
+
   std::string name;
+
   if (peek() && peek()->tokentype == TokenType::IDENTIFIER) {
-    name = consume()->value.value();
+    auto name_tok = consume();
+    union_token = *name_tok;
+    name = name_tok->value.value();
   }
 
   auto decl = parseUnionDeclaration(name);
@@ -216,22 +227,29 @@ std::unique_ptr<UnionDeclarationStmt> Parser::parseUnionDeclarationStmt() {
     return nullptr;
   }
 
-  return std::make_unique<UnionDeclarationStmt>(std::move(decl));
+  return std::make_unique<UnionDeclarationStmt>(union_token, std::move(decl));
 }
 
 std::unique_ptr<EnumDeclarationStmt> Parser::parseEnumDeclarationStmt() {
-  consume(); // enum
+  auto keyword_tok = consume(); // enum
+
+  Token enum_token = *keyword_tok;
+
   std::string name;
+
   if (peek() && peek()->tokentype == TokenType::IDENTIFIER) {
-    name = consume()->value.value();
+    auto name_tok = consume();
+    enum_token = *name_tok;
+    name = name_tok->value.value();
   }
+
   auto decl = parseEnumDeclaration(name);
 
   if (!decl) {
     return nullptr;
   }
 
-  return std::make_unique<EnumDeclarationStmt>(std::move(decl));
+  return std::make_unique<EnumDeclarationStmt>(enum_token, std::move(decl));
 }
 
 std::unique_ptr<Stmt> Parser::parseTypedefDeclarationStmt() {
@@ -250,7 +268,8 @@ std::unique_ptr<Stmt> Parser::parseTypedefDeclarationStmt() {
     return nullptr;
   }
 
-  std::string alias_name = consume()->value.value();
+  auto alias_name_token = consume();
+  std::string alias_name = alias_name_token->value.value();
 
   while (peek() && peek()->tokentype == TokenType::SQUARE_BRACKETS_OPEN) {
     consume(); // [
@@ -281,7 +300,7 @@ std::unique_ptr<Stmt> Parser::parseTypedefDeclarationStmt() {
 
   typedef_names.insert(alias_name);
 
-  auto stmt = std::make_unique<TypedefDeclarationStmt>(std::move(type), std::move(alias_name));
+  auto stmt = std::make_unique<TypedefDeclarationStmt>(*alias_name_token, std::move(type), std::move(alias_name));
 
   if (pending_struct) {
     stmt->anonymous_struct = std::move(pending_struct);

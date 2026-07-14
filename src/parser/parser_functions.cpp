@@ -33,23 +33,26 @@ std::optional<std::vector<Parameter>> Parser::parseParameters() {
     }
 
     if (pending_struct) {
-      program.statements.push_back(std::make_unique<StructDeclarationStmt>(std::move(pending_struct)));
+      program.statements.push_back(std::make_unique<StructDeclarationStmt>(pending_struct->token, std::move(pending_struct)));
     }
 
     if (pending_union) {
-      program.statements.push_back(std::make_unique<UnionDeclarationStmt>(std::move(pending_union)));
+      program.statements.push_back(std::make_unique<UnionDeclarationStmt>(pending_union->token, std::move(pending_union)));
     }
 
     if (pending_enum) {
-      program.statements.push_back(std::make_unique<EnumDeclarationStmt>(std::move(pending_enum)));
+      program.statements.push_back(std::make_unique<EnumDeclarationStmt>(pending_enum->token, std::move(pending_enum)));
     }
 
     parsePointerSuffix(type);
 
+    auto type_token = peek(-1);
     std::optional<std::string> name;
 
     if (peek() && peek()->tokentype == TokenType::IDENTIFIER) {
-      name = consume()->value.value();
+      auto tok = consume();
+      name = tok->value.value();
+      type_token = *tok;
     }
 
     bool parameter_failed = false;
@@ -86,7 +89,7 @@ std::optional<std::vector<Parameter>> Parser::parseParameters() {
     if (parameter_failed) {
       continue;
     }
-    params.push_back({.type = std::move(type), .name = std::move(name)});
+    params.push_back({.token = std::move(*type_token), .type = std::move(type), .name = std::move(name)});
     if (peek() && peek()->tokentype == TokenType::COMMA) {
       consume();
     } else {
@@ -108,15 +111,15 @@ std::unique_ptr<FunctionDecl> Parser::parseFunction() {
   }
 
   if (pending_struct) {
-    program.statements.push_back(std::make_unique<StructDeclarationStmt>(std::move(pending_struct)));
+    program.statements.push_back(std::make_unique<StructDeclarationStmt>(pending_struct->token, std::move(pending_struct)));
   }
 
   if (pending_union) {
-    program.statements.push_back(std::make_unique<UnionDeclarationStmt>(std::move(pending_union)));
+    program.statements.push_back(std::make_unique<UnionDeclarationStmt>(pending_union->token, std::move(pending_union)));
   }
 
   if (pending_enum) {
-    program.statements.push_back(std::make_unique<EnumDeclarationStmt>(std::move(pending_enum)));
+    program.statements.push_back(std::make_unique<EnumDeclarationStmt>(pending_enum->token, std::move(pending_enum)));
   }
 
   parsePointerSuffix(return_type);
@@ -126,7 +129,9 @@ std::unique_ptr<FunctionDecl> Parser::parseFunction() {
     return nullptr;
   }
 
-  std::string function_name = consume()->value.value();
+  auto name_tok = consume();
+  std::string function_name = name_tok->value.value();
+
   if (!match(TokenType::PARENTHESIS_OPEN)) {
     return nullptr;
   }
@@ -145,7 +150,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunction() {
   }
   if (peek() && peek()->tokentype == TokenType::SEMI_COLON) {
     consume(); // ;
-    return std::make_unique<FunctionDecl>(std::move(return_type), std::move(function_name), std::move(params));
+    return std::make_unique<FunctionDecl>(*name_tok, std::move(return_type), std::move(function_name), std::move(params));
   }
 
   auto body = parseBlock();
@@ -153,5 +158,5 @@ std::unique_ptr<FunctionDecl> Parser::parseFunction() {
   if (!body) {
     return nullptr;
   }
-  return std::make_unique<FunctionDecl>(std::move(return_type), std::move(function_name), std::move(params), std::move(body));
+  return std::make_unique<FunctionDecl>(*name_tok, std::move(return_type), std::move(function_name), std::move(params), std::move(body));
 }

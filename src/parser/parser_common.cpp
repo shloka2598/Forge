@@ -88,6 +88,8 @@ bool Parser::isDatatype(TokenType token) const {
 ParsedType Parser::parseDatatype() {
   ParsedType type{};
 
+  bool recorded_token = false;
+
   bool is_signed = false;
   bool is_unsigned = false;
   bool is_short = false;
@@ -96,6 +98,51 @@ ParsedType Parser::parseDatatype() {
   bool found_base_type = false;
 
   while (peek()) {
+    if (!recorded_token) {
+      switch (peek()->tokentype) {
+      case TokenType::CONST:
+      case TokenType::VOLATILE:
+      case TokenType::RESTRICT:
+
+      case TokenType::STATIC:
+      case TokenType::EXTERN:
+      case TokenType::REGISTER:
+      case TokenType::AUTO:
+      case TokenType::TYPEDEF:
+
+      case TokenType::INLINE:
+
+      case TokenType::SIGNED:
+      case TokenType::UNSIGNED:
+      case TokenType::SHORT:
+      case TokenType::LONG:
+
+      case TokenType::DATATYPE_VOID:
+      case TokenType::DATATYPE_CHAR:
+      case TokenType::DATATYPE_INT:
+      case TokenType::DATATYPE_FLOAT:
+      case TokenType::DATATYPE_DOUBLE:
+
+      case TokenType::STRUCT:
+      case TokenType::UNION:
+      case TokenType::ENUM:
+
+        type.token = *peek();
+        recorded_token = true;
+        break;
+
+      case TokenType::IDENTIFIER:
+        if (typedef_names.contains(peek()->value.value())) {
+          type.token = *peek();
+          recorded_token = true;
+        }
+        break;
+
+      default:
+        break;
+      }
+    }
+
     switch (peek()->tokentype) {
       // type qualifiers
     case TokenType::CONST: {

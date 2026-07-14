@@ -40,16 +40,12 @@ int main(int argc, char *argv[]) {
 
   show_ast(debug, program);
 
-  Semantics analyzer(program);
+  Semantics analyzer(program, diagnostic);
 
   analyzer.analyze();
 
   show_ast(debug, program);
 
-  if (analyzer.error_occured()) {
-    std::cerr << "Compiler halted due to Semantic failure" << std::endl;
-    return -3;
-  }
   Optimizer optimizer(program);
   optimizer.optimize();
 

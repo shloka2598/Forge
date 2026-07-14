@@ -33,7 +33,7 @@ std::unique_ptr<IfStmt> Parser::parseIfStmt() {
     }
   }
 
-  return std::make_unique<IfStmt>(std::move(condition), std::move(then_body), std::move(else_body));
+  return std::make_unique<IfStmt>(*tok, std::move(condition), std::move(then_body), std::move(else_body));
 }
 
 std::unique_ptr<WhileStmt> Parser::parseWhileStmt() {
@@ -57,11 +57,11 @@ std::unique_ptr<WhileStmt> Parser::parseWhileStmt() {
     return nullptr;
   }
 
-  return std::make_unique<WhileStmt>(std::move(condition), std::move(body));
+  return std::make_unique<WhileStmt>(*tok, std::move(condition), std::move(body));
 }
 
 std::unique_ptr<DoWhileStmt> Parser::parseDoWhileStmt() {
-  consume(); // do
+  auto tok = consume(); // do
   auto body = parseStatementOrBlock();
   if (!body) {
     return nullptr;
@@ -83,7 +83,7 @@ std::unique_ptr<DoWhileStmt> Parser::parseDoWhileStmt() {
   if (!match(TokenType::SEMI_COLON)) {
     return nullptr;
   }
-  return std::make_unique<DoWhileStmt>(std::move(body), std::move(condition));
+  return std::make_unique<DoWhileStmt>(*tok, std::move(body), std::move(condition));
 }
 
 std::unique_ptr<SwitchStmt> Parser::parseSwitchStmt() {
@@ -155,7 +155,7 @@ std::unique_ptr<SwitchStmt> Parser::parseSwitchStmt() {
     return nullptr;
   }
 
-  return std::make_unique<SwitchStmt>(std::move(condition), std::move(cases), std::move(default_body));
+  return std::make_unique<SwitchStmt>(*tok, std::move(condition), std::move(cases), std::move(default_body));
 }
 
 std::unique_ptr<Stmt> Parser::parseForInitStmt() {
@@ -177,7 +177,9 @@ std::unique_ptr<Stmt> Parser::parseForInitStmt() {
       error("Expected a variable name.", peek());
       return nullptr;
     }
-    std::string var_name = consume()->value.value();
+
+    auto name_tok = consume();
+    std::string var_name = name_tok->value.value();
 
     while (peek() && peek()->tokentype == TokenType::SQUARE_BRACKETS_OPEN) {
       consume();
@@ -213,7 +215,7 @@ std::unique_ptr<Stmt> Parser::parseForInitStmt() {
       }
     }
 
-    return std::make_unique<VariableDeclarationStmt>(std::move(type), std::move(var_name), std::move(expr_ptr), std::move(array_initializer));
+    return std::make_unique<VariableDeclarationStmt>(*name_tok, std::move(type), std::move(var_name), std::move(expr_ptr), std::move(array_initializer));
   }
 
   auto expr = parseExpr();
@@ -222,7 +224,7 @@ std::unique_ptr<Stmt> Parser::parseForInitStmt() {
     return nullptr;
   }
 
-  return std::make_unique<ExpressionStmt>(std::move(expr));
+  return std::make_unique<ExpressionStmt>(expr->token, std::move(expr));
 }
 
 std::unique_ptr<Stmt> Parser::parseForUpdateStmt() {
@@ -236,11 +238,11 @@ std::unique_ptr<Stmt> Parser::parseForUpdateStmt() {
     return nullptr;
   }
 
-  return std::make_unique<ExpressionStmt>(std::move(expr));
+  return std::make_unique<ExpressionStmt>(expr->token, std::move(expr));
 }
 
 std::unique_ptr<ForStmt> Parser::parseForStmt() {
-  consume(); // for
+  auto tok = consume(); // for
   if (!match(TokenType::PARENTHESIS_OPEN)) {
     return nullptr;
   }
@@ -275,5 +277,5 @@ std::unique_ptr<ForStmt> Parser::parseForStmt() {
     return nullptr;
   }
 
-  return std::make_unique<ForStmt>(std::move(init_stmt), std::move(condition), std::move(update_stmt), std::move(body));
+  return std::make_unique<ForStmt>(*tok, std::move(init_stmt), std::move(condition), std::move(update_stmt), std::move(body));
 }

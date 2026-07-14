@@ -9,6 +9,8 @@
 class Semantics {
 private:
   const Program &program;
+  DiagnosticEngine &diagnostics;
+
   Scope global_scope;
   TypeContext type_context;
 
@@ -54,7 +56,7 @@ private:
   Type *usual_arithmetic_conversion(Type *, Type *);
   Type *common_real_type(Type *, Type *);
   Type *build_type(const ParsedType &, Scope &);
-  Type *lookup_tag_type(Scope &scope, const std::string &name, SymbolKind expected_kind);
+  Type *lookup_tag_type(Scope &scope, const Token &, const std::string &name, SymbolKind expected_kind);
 
   Type *composite_pointer_type(Type *, Type *);
 
@@ -63,15 +65,11 @@ private:
   std::optional<int64_t> evaluate_constant_expr(const Expr *expr);
 
   bool register_symbol(Scope &scope, SymbolKind kind, const std::string &name, Type *type);
-  void error(const std::string &);
-  void warning(const std::string &);
+  void error(const Token &, const std::string &);
+  void warning(const Token &, const std::string &);
 
 public:
-  explicit Semantics(const Program &_program) : program{_program} {
-  }
-
-  bool error_occured(void) const {
-    return has_error;
+  explicit Semantics(const Program &_program, DiagnosticEngine &engine) : program{_program}, diagnostics(engine) {
   }
 
   void analyze();

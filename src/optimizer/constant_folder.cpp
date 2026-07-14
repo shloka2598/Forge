@@ -1,7 +1,7 @@
 #include "./constant_folder.h"
 
 void ConstantFolder::replace_with_int(std::unique_ptr<Expr> &expr_ptr, int64_t value) {
-  auto replacement = std::make_unique<IntLetExpr>(value);
+  auto replacement = std::make_unique<IntLetExpr>(expr_ptr->token, value);
   replacement->type = expr_ptr->type;
   replacement->value_category = ValueCategory::RVALUE;
   expr_ptr = std::move(replacement);

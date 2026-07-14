@@ -18,6 +18,7 @@ struct GlobalVariableDecl {
   std::string name;
   std::unique_ptr<Expr> initializer;
   std::optional<ArrayInitializer> array_initializer;
+  Token token;
   Type *resolved_type = nullptr;
 
   void show_global() const {
@@ -51,6 +52,7 @@ struct GlobalVariableDecl {
 };
 
 struct Parameter {
+  Token token;
   ParsedType type;
   std::optional<std::string> name;
 
@@ -58,6 +60,7 @@ struct Parameter {
 };
 
 struct FunctionDecl {
+  Token token;
   ParsedType return_type;
   Type *resolved_return_type = nullptr;
   std::string name;
@@ -66,10 +69,10 @@ struct FunctionDecl {
 
   bool is_prototype = false;
 
-  FunctionDecl(ParsedType return_type_, std::string name_, std::vector<Parameter> params, std::unique_ptr<BlockStmt> body_) : return_type(std::move(return_type_)), name(std::move(name_)), parameters(std::move(params)), body(std::move(body_)), is_prototype(false) {
+  FunctionDecl(Token token, ParsedType return_type_, std::string name_, std::vector<Parameter> params, std::unique_ptr<BlockStmt> body_) : token{token}, return_type(std::move(return_type_)), name(std::move(name_)), parameters(std::move(params)), body(std::move(body_)), is_prototype(false) {
   }
 
-  FunctionDecl(ParsedType return_type_, std::string name_, std::vector<Parameter> params) : return_type(std::move(return_type_)), name(std::move(name_)), parameters(std::move(params)), is_prototype(true) {
+  FunctionDecl(Token token, ParsedType return_type_, std::string name_, std::vector<Parameter> params) : token{token}, return_type(std::move(return_type_)), name(std::move(name_)), parameters(std::move(params)), is_prototype(true) {
   }
 
   void show_function() const {
@@ -117,9 +120,7 @@ struct FunctionDecl {
 struct GlobalVariableDeclStmt : Stmt {
   std::unique_ptr<GlobalVariableDecl> declaration;
 
-  explicit GlobalVariableDeclStmt(
-      std::unique_ptr<GlobalVariableDecl> decl)
-      : declaration(std::move(decl)) {
+  explicit GlobalVariableDeclStmt(std::unique_ptr<GlobalVariableDecl> decl) : declaration(std::move(decl)) {
   }
 
   virtual StmtType stmt_type() const override {
@@ -138,7 +139,8 @@ struct GlobalVariableDeclStmt : Stmt {
 struct FunctionDeclStmt : Stmt {
   std::unique_ptr<FunctionDecl> declaration;
 
-  explicit FunctionDeclStmt(std::unique_ptr<FunctionDecl> decl) : declaration(std::move(decl)) {
+  explicit FunctionDeclStmt(Token token, std::unique_ptr<FunctionDecl> decl) : declaration(std::move(decl)) {
+    this->token = std::move(token);
   }
 
   virtual StmtType stmt_type() const override {
