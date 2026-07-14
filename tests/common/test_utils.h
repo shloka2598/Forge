@@ -33,6 +33,8 @@ SemanticResult analyze(std::string_view source);
 
 FunctionDeclStmt *get_function_decl(ParserResult &);
 FunctionDeclStmt *get_function_decl(SemanticResult &);
+FunctionDeclStmt *get_function_decl(SemanticResult &, std::string_view);
+FunctionDeclStmt *get_function_decl(ParserResult &, std::string_view);
 
 ReturnStmt *get_return_stmt(ParserResult &);
 ReturnStmt *get_return_stmt(SemanticResult &);
@@ -96,4 +98,18 @@ T *get_type(Expr *expr) {
   REQUIRE(type != nullptr);
 
   return type;
+}
+
+Parameter *get_parameter(FunctionDeclStmt *fn, size_t index);
+
+template <typename T>
+T *get_argument(FunctionCallExpr *call, size_t index) {
+  REQUIRE(call != nullptr);
+  REQUIRE(index < call->arguments.size());
+
+  auto *arg = dynamic_cast<T *>(call->arguments[index].get());
+
+  REQUIRE(arg != nullptr);
+
+  return arg;
 }

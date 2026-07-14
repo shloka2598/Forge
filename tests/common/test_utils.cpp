@@ -46,6 +46,34 @@ FunctionDeclStmt *get_function_decl(SemanticResult &result) {
   return nullptr;
 }
 
+FunctionDeclStmt *get_function_decl(SemanticResult &result, std::string_view name) {
+  for (auto &stmt : result.program.statements) {
+    if (stmt->stmt_type() != StmtType::FUNCTION_DECL_STMT)
+      continue;
+
+    auto *fn = static_cast<FunctionDeclStmt *>(stmt.get());
+
+    if (fn->declaration->name == name)
+      return fn;
+  }
+
+  return nullptr;
+}
+
+FunctionDeclStmt *get_function_decl(ParserResult &result, std::string_view name) {
+  for (auto &stmt : result.program.statements) {
+    if (stmt->stmt_type() != StmtType::FUNCTION_DECL_STMT)
+      continue;
+
+    auto *fn = static_cast<FunctionDeclStmt *>(stmt.get());
+
+    if (fn->declaration->name == name)
+      return fn;
+  }
+
+  return nullptr;
+}
+
 ReturnStmt *get_return_stmt(ParserResult &result) {
   FunctionDeclStmt *fn = get_function_decl(result);
 
@@ -97,4 +125,11 @@ Expr *get_return_expr(SemanticResult &result) {
   REQUIRE(ret->expr_ptr != nullptr);
 
   return ret->expr_ptr.get();
+}
+
+Parameter *get_parameter(FunctionDeclStmt *fn, size_t index) {
+  REQUIRE(fn != nullptr);
+  REQUIRE(index < fn->declaration->parameters.size());
+
+  return &fn->declaration->parameters[index];
 }
