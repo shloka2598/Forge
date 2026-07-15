@@ -4,7 +4,11 @@ Forge is a C compiler written from scratch in C++20. I created this project with
 
 ## Current Status
 
-The frontend of the compiler supports a substantial subset of features of the C language and includes lexical analysis, parsing, semantic analysis, symbol resolution, and a fully typed abstract syntax tree (AST). The next stage of development focuses on AST optimizations followed by intermediate representation (IR) generation and backend implementation.
+Forge currently implements a complete frontend for a substantial subset of the C language, including lexical analysis, parsing, semantic analysis, type checking, symbol resolution, and a fully typed Abstract Syntax Tree (AST).
+
+The compiler also features source-aware diagnostics with precise error reporting and extensive automated testing.
+
+Development is currently focused on expanding the optimization pipeline, followed by intermediate representation (IR) generation and backend code generation.
 
 ## Features
 
@@ -12,12 +16,18 @@ The frontend of the compiler supports a substantial subset of features of the C 
 
 - Lexical analysis
 - Recursive descent parser
+- Error recovery
+- Source-aware diagnostics
 - Abstract Syntax Tree (AST)
 - Typed AST
 - Symbol table
 - Semantic analysis
 - Type checking
 - Scope management
+
+### Optimization
+
+- AST optimization framework
 
 ### Supported Language Features
 
@@ -47,6 +57,33 @@ The frontend of the compiler supports a substantial subset of features of the C 
 - `break`
 - `continue`
 - `return`
+- Assignment expressions
+- Unary operators
+- Binary operators
+- Conditional (`?:`) operator
+- Comma operator
+- Implicit arithmetic conversions
+
+## Testing
+
+Forge uses Catch2 for automated testing.
+
+Current test suite includes:
+
+- 910 test cases
+- 8392 assertions
+
+Run the test suite with:
+
+```bash
+ctest
+```
+
+or
+
+```bash
+./build/tests/forge_tests
+```
 
 ## Building
 
@@ -84,11 +121,13 @@ forge
 - Lexer
 - Parser
 - AST construction
+- Typed AST
+- Symbol tables
 - Semantic analysis
 - Type system
-- Symbol tables
-- Typed AST
-- Basic Optimizations
+- Source-aware diagnostics
+- Error recovery
+- Basic AST optimization framework
 
 ### In Progress
 
