@@ -1,4 +1,5 @@
 #include "semantics.h"
+#include "types/type_utils.h"
 
 #include <unordered_set>
 

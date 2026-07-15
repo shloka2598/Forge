@@ -1,11 +1,49 @@
 #include "./constant_folder.h"
 #include "types/type_utils.h"
 
-void ConstantFolder::replace_with_int(std::unique_ptr<Expr> &expr_ptr, int64_t value) {
-  auto replacement = std::make_unique<IntLetExpr>(expr_ptr->token, value);
-  replacement->type = expr_ptr->type;
-  replacement->value_category = ValueCategory::RVALUE;
-  expr_ptr = std::move(replacement);
+#include <cassert>
+
+void ConstantFolder::replace_with_expr(std::unique_ptr<Expr> &dst, std::unique_ptr<Expr> src) {
+  if (src->type == nullptr) {
+    src->type = dst->type;
+  }
+  src->value_category = ValueCategory::RVALUE;
+  dst = std::move(src);
+}
+
+std::unique_ptr<Expr> ConstantFolder::make_constant_expr(const Token &token, Type *type, long double value) {
+  auto *builtin = static_cast<BuiltinType *>(type);
+
+  switch (builtin->builtin_kind) {
+  case BuiltinKind::CHAR:
+    return std::make_unique<CharLetExpr>(token, static_cast<char>(value));
+
+  case BuiltinKind::UCHAR:
+    return std::make_unique<CharLetExpr>(token, static_cast<unsigned char>(value));
+
+  case BuiltinKind::SHORT:
+  case BuiltinKind::USHORT:
+  case BuiltinKind::INT:
+  case BuiltinKind::UINT:
+  case BuiltinKind::LONG:
+  case BuiltinKind::ULONG:
+  case BuiltinKind::LONGLONG:
+  case BuiltinKind::ULONGLONG:
+    return std::make_unique<IntLetExpr>(token, static_cast<int64_t>(value));
+
+  case BuiltinKind::FLOAT:
+    return std::make_unique<FloatLetExpr>(token, static_cast<float>(value));
+
+  case BuiltinKind::DOUBLE:
+    return std::make_unique<DoubleLetExpr>(token, static_cast<double>(value));
+
+  case BuiltinKind::LONGDOUBLE:
+    return std::make_unique<DoubleLetExpr>(token, static_cast<double>(value));
+
+  default:
+    assert(false);
+    return nullptr;
+  }
 }
 
 bool ConstantFolder::fold_binary_constants(std::unique_ptr<Expr> &expr_ptr) {
@@ -15,104 +53,144 @@ bool ConstantFolder::fold_binary_constants(std::unique_ptr<Expr> &expr_ptr) {
 
   auto *binary = static_cast<BinaryExpr *>(expr_ptr.get());
 
-  if (binary->left_expr->expr_type() != ExprType::INT_LITERAL)
+  if (!is_constant_literal(binary->left_expr.get()))
     return false;
 
-  if (binary->right_expr->expr_type() != ExprType::INT_LITERAL)
+  if (!is_constant_literal(binary->right_expr.get()))
     return false;
 
-  auto *lhs = static_cast<IntLetExpr *>(binary->left_expr.get());
-  auto *rhs = static_cast<IntLetExpr *>(binary->right_expr.get());
+  Type *type = expr_ptr->type;
 
-  int64_t result;
+  long double lhs = 0;
+  long double rhs = 0;
+
+  if (is_floating_type(type)) {
+    lhs = get_double_value(binary->left_expr.get());
+    rhs = get_double_value(binary->right_expr.get());
+  } else {
+    lhs = get_int_value(binary->left_expr.get());
+    rhs = get_int_value(binary->right_expr.get());
+  }
+
+  long double result;
 
   switch (binary->op) {
   case TokenType::PLUS: {
-    result = lhs->value + rhs->value;
+    result = lhs + rhs;
     break;
   }
   case TokenType::MINUS: {
-    result = lhs->value - rhs->value;
+    result = lhs - rhs;
     break;
   }
   case TokenType::MULTIPLY: {
-    result = lhs->value * rhs->value;
+    result = lhs * rhs;
     break;
   }
   case TokenType::DIVIDE: {
-    if (rhs->value == 0 || (lhs->value == INT64_MIN && rhs->value == -1)) {
+    if (rhs == 0) {
       return false;
     }
-    result = lhs->value / rhs->value;
+
+    if (!is_floating_type(type)) {
+      int64_t ilhs = get_int_value(binary->left_expr.get());
+      int64_t irhs = get_int_value(binary->right_expr.get());
+
+      if (ilhs == INT64_MIN && irhs == -1) {
+        return false;
+      }
+    }
+
+    result = lhs / rhs;
     break;
   }
   case TokenType::MODULO: {
-    if (rhs->value == 0 || (lhs->value == INT64_MIN && rhs->value == -1)) {
+    int64_t ilhs = get_int_value(binary->left_expr.get());
+    int64_t irhs = get_int_value(binary->right_expr.get());
+
+    if (irhs == 0 || (ilhs == INT64_MIN && irhs == -1)) {
       return false;
     }
-    result = lhs->value % rhs->value;
+    result = ilhs % irhs;
     break;
   }
   case TokenType::SMALLER_THAN: {
-    result = lhs->value < rhs->value;
+    result = lhs < rhs;
     break;
   }
   case TokenType::GREATER_THAN: {
-    result = lhs->value > rhs->value;
+    result = lhs > rhs;
     break;
   }
   case TokenType::GREATER_THAN_EQUAL_THAN: {
-    result = lhs->value >= rhs->value;
+    result = lhs >= rhs;
     break;
   }
   case TokenType::SMALLER_THAN_EQUAL_THAN: {
-    result = lhs->value <= rhs->value;
+    result = lhs <= rhs;
     break;
   }
   case TokenType::DOUBLE_EQUALS: {
-    result = lhs->value == rhs->value;
+    result = lhs == rhs;
     break;
   }
   case TokenType::NOT_EQUALS: {
-    result = lhs->value != rhs->value;
+    result = lhs != rhs;
     break;
   }
   case TokenType::DOUBLE_AMPERSAND: {
-    result = lhs->value && rhs->value;
+    result = lhs && rhs;
     break;
   }
   case TokenType::DOUBLE_PIPE: {
-    result = lhs->value || rhs->value;
+    result = lhs || rhs;
     break;
   }
   case TokenType::AMPERSAND: {
-    result = lhs->value & rhs->value;
+    int64_t ilhs = get_int_value(binary->left_expr.get());
+    int64_t irhs = get_int_value(binary->right_expr.get());
+
+    result = ilhs & irhs;
+
     break;
   }
   case TokenType::PIPE: {
-    result = lhs->value | rhs->value;
+    int64_t ilhs = get_int_value(binary->left_expr.get());
+    int64_t irhs = get_int_value(binary->right_expr.get());
+
+    result = ilhs | irhs;
     break;
   }
   case TokenType::LEFT_SHIFT: {
-    if ((rhs->value < 0) || (rhs->value >= static_cast<int64_t>(sizeof(int64_t) * CHAR_BIT))) {
+    int64_t ilhs = get_int_value(binary->left_expr.get());
+    int64_t irhs = get_int_value(binary->right_expr.get());
+
+    if ((irhs < 0) || (irhs >= static_cast<int64_t>(sizeof(int64_t) * CHAR_BIT))) {
       return false;
     }
-    result = lhs->value << rhs->value;
+    result = ilhs << irhs;
     break;
   }
   case TokenType::RIGHT_SHIFT: {
-    if ((rhs->value < 0) || (rhs->value >= static_cast<int64_t>(sizeof(int64_t) * CHAR_BIT))) {
+    int64_t ilhs = get_int_value(binary->left_expr.get());
+    int64_t irhs = get_int_value(binary->right_expr.get());
+
+    if ((irhs < 0) || (irhs >= static_cast<int64_t>(sizeof(int64_t) * CHAR_BIT))) {
       return false;
     }
-    result = lhs->value >> rhs->value;
+
+    result = ilhs >> irhs;
     break;
   }
   case TokenType::CARET: {
-    result = lhs->value ^ rhs->value;
+    int64_t ilhs = get_int_value(binary->left_expr.get());
+    int64_t irhs = get_int_value(binary->right_expr.get());
+
+    result = ilhs ^ irhs;
     break;
   }
   case TokenType::COMMA: {
-    result = rhs->value;
+    result = rhs;
     break;
   }
 
@@ -121,7 +199,7 @@ bool ConstantFolder::fold_binary_constants(std::unique_ptr<Expr> &expr_ptr) {
   }
   }
 
-  replace_with_int(expr_ptr, result);
+  replace_with_expr(expr_ptr, make_constant_expr(expr_ptr->token, expr_ptr->type, result));
   return true;
 }
 
@@ -130,6 +208,103 @@ bool ConstantFolder::is_int_literal(const Expr *expr_ptr, int64_t value) {
     return false;
   }
   return ((static_cast<const IntLetExpr *>(expr_ptr))->value == value);
+}
+
+bool ConstantFolder::is_zero_literal(const Expr *expr) {
+  if (!is_constant_literal(expr)) {
+    return false;
+  }
+
+  if (is_floating_type(expr->type)) {
+    return get_double_value(expr) == 0.0;
+  }
+
+  return get_int_value(expr) == 0;
+}
+
+bool ConstantFolder::is_one_literal(const Expr *expr) {
+  if (!is_constant_literal(expr)) {
+    return false;
+  }
+
+  if (is_floating_type(expr->type)) {
+    return get_double_value(expr) == 1.0;
+  }
+
+  return get_int_value(expr) == 1;
+}
+
+bool ConstantFolder::is_constant_literal(const Expr *expr) {
+  switch (expr->expr_type()) {
+  case ExprType::INT_LITERAL:
+  case ExprType::FLOAT_LITERAL:
+  case ExprType::DOUBLE_LITERAL:
+  case ExprType::CHAR_LITERAL:
+    return true;
+
+  default:
+    return false;
+  }
+}
+
+int64_t ConstantFolder::get_int_value(const Expr *expr) {
+  switch (expr->expr_type()) {
+  case ExprType::INT_LITERAL:
+    return static_cast<const IntLetExpr *>(expr)->value;
+
+  case ExprType::CHAR_LITERAL:
+    return static_cast<const CharLetExpr *>(expr)->value;
+
+  case ExprType::FLOAT_LITERAL:
+    return static_cast<int64_t>(static_cast<const FloatLetExpr *>(expr)->value);
+
+  case ExprType::DOUBLE_LITERAL:
+    return static_cast<int64_t>(static_cast<const DoubleLetExpr *>(expr)->value);
+
+  default:
+    assert(false && "Invalid constant literal");
+    return 0;
+  }
+}
+
+float ConstantFolder::get_float_value(const Expr *expr) {
+  switch (expr->expr_type()) {
+  case ExprType::INT_LITERAL:
+    return static_cast<float>(static_cast<const IntLetExpr *>(expr)->value);
+
+  case ExprType::CHAR_LITERAL:
+    return static_cast<float>(static_cast<const CharLetExpr *>(expr)->value);
+
+  case ExprType::FLOAT_LITERAL:
+    return static_cast<const FloatLetExpr *>(expr)->value;
+
+  case ExprType::DOUBLE_LITERAL:
+    return static_cast<float>(static_cast<const DoubleLetExpr *>(expr)->value);
+
+  default:
+    assert(false && "Invalid constant literal");
+    return 0;
+  }
+}
+
+double ConstantFolder::get_double_value(const Expr *expr) {
+  switch (expr->expr_type()) {
+  case ExprType::INT_LITERAL:
+    return static_cast<double>(static_cast<const IntLetExpr *>(expr)->value);
+
+  case ExprType::CHAR_LITERAL:
+    return static_cast<double>(static_cast<const CharLetExpr *>(expr)->value);
+
+  case ExprType::FLOAT_LITERAL:
+    return static_cast<double>(static_cast<const FloatLetExpr *>(expr)->value);
+
+  case ExprType::DOUBLE_LITERAL:
+    return static_cast<const DoubleLetExpr *>(expr)->value;
+
+  default:
+    assert(false && "Invalid constant literal");
+    return 0;
+  }
 }
 
 bool ConstantFolder::fold_algebraic(std::unique_ptr<Expr> &expr_ptr) {
@@ -144,12 +319,12 @@ bool ConstantFolder::fold_algebraic(std::unique_ptr<Expr> &expr_ptr) {
 
   switch (binary_expr->op) {
   case TokenType::PLUS: {
-    if (is_int_literal(lhs, 0)) {
+    if (is_zero_literal(lhs)) {
       expr_ptr = std::move(binary_expr->right_expr);
       return true;
     }
 
-    if (is_int_literal(rhs, 0)) {
+    if (is_zero_literal(rhs)) {
       expr_ptr = std::move(binary_expr->left_expr);
       return true;
     }
@@ -157,7 +332,7 @@ bool ConstantFolder::fold_algebraic(std::unique_ptr<Expr> &expr_ptr) {
     return false;
   }
   case TokenType::MINUS: {
-    if (is_int_literal(rhs, 0)) {
+    if (is_zero_literal(rhs)) {
       expr_ptr = std::move(binary_expr->left_expr);
       return true;
     }
@@ -165,64 +340,65 @@ bool ConstantFolder::fold_algebraic(std::unique_ptr<Expr> &expr_ptr) {
     return false;
   }
   case TokenType::MULTIPLY: {
-    if (is_int_literal(lhs, 1)) {
+    if (is_one_literal(lhs)) {
       expr_ptr = std::move(binary_expr->right_expr);
       return true;
     }
-    if (is_int_literal(rhs, 1)) {
+    if (is_one_literal(rhs)) {
       expr_ptr = std::move(binary_expr->left_expr);
       return true;
     }
-    if (is_int_literal(lhs, 0)) {
-      replace_with_int(expr_ptr, 0);
+
+    if (is_zero_literal(lhs)) {
+      replace_with_expr(expr_ptr, make_constant_expr(expr_ptr->token, expr_ptr->type, 0));
       return true;
     }
-    if (is_int_literal(rhs, 0)) {
-      replace_with_int(expr_ptr, 0);
+    if (is_zero_literal(rhs)) {
+      replace_with_expr(expr_ptr, make_constant_expr(expr_ptr->token, expr_ptr->type, 0));
       return true;
     }
 
     return false;
   }
   case TokenType::DIVIDE: {
-    if (is_int_literal(rhs, 1)) {
+    if (is_one_literal(rhs)) {
       expr_ptr = std::move(binary_expr->left_expr);
       return true;
     }
-    if (is_int_literal(lhs, 0) && !is_int_literal(rhs, 0)) {
-      replace_with_int(expr_ptr, 0);
+    if (is_zero_literal(lhs) && !is_zero_literal(rhs)) {
+      replace_with_expr(expr_ptr, make_constant_expr(expr_ptr->token, expr_ptr->type, 0));
       return true;
     }
     return false;
   }
   case TokenType::MODULO: {
-    if (is_int_literal(rhs, 1)) {
-      replace_with_int(expr_ptr, 0);
+    if (is_one_literal(rhs)) {
+      replace_with_expr(expr_ptr, std::make_unique<IntLetExpr>(expr_ptr->token, 0));
       return true;
     }
     return false;
   }
   case TokenType::PIPE: {
-    if (is_int_literal(lhs, 0)) {
+    if (is_zero_literal(lhs)) {
       expr_ptr = std::move(binary_expr->right_expr);
       return true;
     }
-    if (is_int_literal(rhs, 0)) {
+    if (is_zero_literal(rhs)) {
       expr_ptr = std::move(binary_expr->left_expr);
       return true;
     }
     if (is_int_literal(lhs, -1) || is_int_literal(rhs, -1)) {
-      replace_with_int(expr_ptr, -1);
+      replace_with_expr(expr_ptr, std::make_unique<IntLetExpr>(expr_ptr->token, -1));
       return true;
     }
     return false;
   }
   case TokenType::CARET: {
-    if (is_int_literal(lhs, 0)) {
+    if (is_zero_literal(lhs)) {
       expr_ptr = std::move(binary_expr->right_expr);
       return true;
     }
-    if (is_int_literal(rhs, 0)) {
+    if (is_zero_literal(rhs)) {
       expr_ptr = std::move(binary_expr->left_expr);
       return true;
     }
@@ -237,52 +413,52 @@ bool ConstantFolder::fold_algebraic(std::unique_ptr<Expr> &expr_ptr) {
       expr_ptr = std::move(binary_expr->left_expr);
       return true;
     }
-    if (is_int_literal(lhs, 0) || is_int_literal(rhs, 0)) {
-      replace_with_int(expr_ptr, 0);
+    if (is_zero_literal(lhs) || is_zero_literal(rhs)) {
+      replace_with_expr(expr_ptr, make_constant_expr(expr_ptr->token, expr_ptr->type, 0));
       return true;
     }
 
     return false;
   }
   case TokenType::LEFT_SHIFT: {
-    if (is_int_literal(rhs, 0)) {
+    if (is_zero_literal(rhs)) {
       expr_ptr = std::move(binary_expr->left_expr);
       return true;
     }
     return false;
   }
   case TokenType::RIGHT_SHIFT: {
-    if (is_int_literal(rhs, 0)) {
+    if (is_zero_literal(rhs)) {
       expr_ptr = std::move(binary_expr->left_expr);
       return true;
     }
     return false;
   }
   case TokenType::DOUBLE_AMPERSAND: {
-    if (is_int_literal(lhs, 0) || is_int_literal(rhs, 0)) {
-      replace_with_int(expr_ptr, 0);
+    if (is_zero_literal(lhs) || is_zero_literal(rhs)) {
+      replace_with_expr(expr_ptr, make_constant_expr(expr_ptr->token, expr_ptr->type, 0));
       return true;
     }
-    if (is_int_literal(lhs, 1)) {
+    if (is_one_literal(lhs)) {
       expr_ptr = std::move(binary_expr->right_expr);
       return true;
     }
-    if (is_int_literal(rhs, 1)) {
+    if (is_one_literal(rhs)) {
       expr_ptr = std::move(binary_expr->left_expr);
       return true;
     }
     return false;
   }
   case TokenType::DOUBLE_PIPE: {
-    if (is_int_literal(lhs, 1) || is_int_literal(rhs, 1)) {
-      replace_with_int(expr_ptr, 1);
+    if (is_one_literal(lhs) || is_one_literal(rhs)) {
+      replace_with_expr(expr_ptr, make_constant_expr(expr_ptr->token, expr_ptr->type, 1));
       return true;
     }
-    if (is_int_literal(lhs, 0)) {
+    if (is_zero_literal(lhs)) {
       expr_ptr = std::move(binary_expr->right_expr);
       return true;
     }
-    if (is_int_literal(rhs, 0)) {
+    if (is_zero_literal(rhs)) {
       expr_ptr = std::move(binary_expr->left_expr);
       return true;
     }
@@ -301,31 +477,39 @@ bool ConstantFolder::fold_unary(std::unique_ptr<Expr> &expr_ptr) {
 
   auto *unary = static_cast<UnaryExpr *>(expr_ptr.get());
 
-  if (unary->right_expr->expr_type() != ExprType::INT_LITERAL) {
+  if (!is_constant_literal(unary->right_expr.get())) {
     return false;
   }
 
-  auto *operand = static_cast<IntLetExpr *>(unary->right_expr.get());
+  Type *type = unary->type;
+
+  long double value;
+
+  if (is_floating_type(type)) {
+    value = get_double_value(unary->right_expr.get());
+  } else {
+    value = get_int_value(unary->right_expr.get());
+  }
 
   switch (unary->op) {
   case TokenType::PLUS: {
-    expr_ptr = std::move(unary->right_expr);
+    replace_with_expr(expr_ptr, make_constant_expr(expr_ptr->token, type, value));
     return true;
   }
   case TokenType::MINUS: {
-    if (operand->value == INT64_MIN) {
-      return false;
-    }
-
-    replace_with_int(expr_ptr, -(operand->value));
+    replace_with_expr(expr_ptr, make_constant_expr(expr_ptr->token, type, -value));
     return true;
   }
   case TokenType::EXCLAMATION: {
-    replace_with_int(expr_ptr, !(operand->value));
+    replace_with_expr(expr_ptr, make_constant_expr(expr_ptr->token, expr_ptr->type, !value));
     return true;
   }
   case TokenType::TILDE: {
-    replace_with_int(expr_ptr, ~(operand->value));
+    if (is_floating_type(type)) {
+      return false;
+    }
+
+    replace_with_expr(expr_ptr, make_constant_expr(expr_ptr->token, type, ~get_int_value(unary->right_expr.get())));
     return true;
   }
   default: {
@@ -341,13 +525,19 @@ bool ConstantFolder::fold_conditional(std::unique_ptr<Expr> &expr_ptr) {
 
   auto *conditional = static_cast<ConditionalExpr *>(expr_ptr.get());
 
-  if (conditional->condition->expr_type() != ExprType::INT_LITERAL) {
+  if (!is_constant_literal(conditional->condition.get())) {
     return false;
   }
 
-  auto *value = static_cast<IntLetExpr *>(conditional->condition.get());
+  bool condition;
 
-  if (value->value != 0) {
+  if (is_floating_type(conditional->condition->type)) {
+    condition = get_double_value(conditional->condition.get()) != 0.0;
+  } else {
+    condition = get_int_value(conditional->condition.get()) != 0;
+  }
+
+  if (condition) {
     expr_ptr = std::move(conditional->true_expr);
   } else {
     expr_ptr = std::move(conditional->false_expr);
@@ -363,17 +553,39 @@ bool ConstantFolder::fold_sizeof(std::unique_ptr<Expr> &expr_ptr) {
 
   auto *sizeof_expr = static_cast<SizeofExpr *>(expr_ptr.get());
 
-  Type *type = nullptr;
-
-  if (sizeof_expr->parsed_type.has_value()) {
-    // sizeof(type)
-    type = expr_ptr->type;
-  } else {
-    // sizeof(expression)
-    type = sizeof_expr->expr->type;
+  if (!is_complete_type(sizeof_expr->type)) {
+    return false;
   }
 
-  replace_with_int(expr_ptr, static_cast<int64_t>(sizeof_type(type)));
+  replace_with_expr(expr_ptr, std::make_unique<IntLetExpr>(expr_ptr->token, sizeof_type(sizeof_expr->type)));
+
+  return true;
+}
+
+bool ConstantFolder::fold_cast(std::unique_ptr<Expr> &expr_ptr) {
+  if (expr_ptr->expr_type() != ExprType::CAST) {
+    return false;
+  }
+
+  auto *cast_expr = static_cast<CastExpr *>(expr_ptr.get());
+
+  if (!is_constant_literal(cast_expr->expr.get())) {
+    return false;
+  }
+
+  if (cast_expr->type->kind != TypeKind::BUILTIN) {
+    return false;
+  }
+
+  long double value;
+
+  if (is_floating_type(cast_expr->expr->type)) {
+    value = get_double_value(cast_expr->expr.get());
+  } else {
+    value = get_int_value(cast_expr->expr.get());
+  }
+
+  replace_with_expr(expr_ptr, make_constant_expr(expr_ptr->token, cast_expr->type, value));
 
   return true;
 }
@@ -588,6 +800,14 @@ bool ConstantFolder::optimize_expr(std::unique_ptr<Expr> &expr_ptr) {
     changed |= optimize_expr(expr.base_expr);
     break;
   }
+  case ExprType::SIZEOF: {
+    auto &expr = static_cast<SizeofExpr &>(*expr_ptr);
+
+    if (expr.expr) {
+      changed |= optimize_expr(expr.expr);
+    }
+    break;
+  }
   case ExprType::INT_LITERAL:
   case ExprType::DOUBLE_LITERAL:
   case ExprType::FLOAT_LITERAL:
@@ -624,6 +844,12 @@ bool ConstantFolder::optimize_expr(std::unique_ptr<Expr> &expr_ptr) {
   }
   case ExprType::SIZEOF: {
     if (fold_sizeof(expr_ptr)) {
+      return true;
+    }
+    break;
+  }
+  case ExprType::CAST: {
+    if (fold_cast(expr_ptr)) {
       return true;
     }
     break;
