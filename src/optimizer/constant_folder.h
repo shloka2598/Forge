@@ -14,6 +14,7 @@ private:
   bool fold_algebraic(std::unique_ptr<Expr> &);
   bool fold_unary(std::unique_ptr<Expr> &);
   bool fold_conditional(std::unique_ptr<Expr> &);
+  bool fold_sizeof(std::unique_ptr<Expr> &);
 
   bool is_int_literal(const Expr *, int64_t);
 

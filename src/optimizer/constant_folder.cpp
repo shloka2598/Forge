@@ -1,4 +1,5 @@
 #include "./constant_folder.h"
+#include "types/type_utils.h"
 
 void ConstantFolder::replace_with_int(std::unique_ptr<Expr> &expr_ptr, int64_t value) {
   auto replacement = std::make_unique<IntLetExpr>(expr_ptr->token, value);
@@ -93,14 +94,14 @@ bool ConstantFolder::fold_binary_constants(std::unique_ptr<Expr> &expr_ptr) {
     break;
   }
   case TokenType::LEFT_SHIFT: {
-    if ((rhs->value < 0) || (rhs->value >= 64)) {
+    if ((rhs->value < 0) || (rhs->value >= static_cast<int64_t>(sizeof(int64_t) * CHAR_BIT))) {
       return false;
     }
     result = lhs->value << rhs->value;
     break;
   }
   case TokenType::RIGHT_SHIFT: {
-    if ((rhs->value < 0) || (rhs->value >= 64)) {
+    if ((rhs->value < 0) || (rhs->value >= static_cast<int64_t>(sizeof(int64_t) * CHAR_BIT))) {
       return false;
     }
     result = lhs->value >> rhs->value;
@@ -108,6 +109,10 @@ bool ConstantFolder::fold_binary_constants(std::unique_ptr<Expr> &expr_ptr) {
   }
   case TokenType::CARET: {
     result = lhs->value ^ rhs->value;
+    break;
+  }
+  case TokenType::COMMA: {
+    result = rhs->value;
     break;
   }
 
@@ -184,6 +189,10 @@ bool ConstantFolder::fold_algebraic(std::unique_ptr<Expr> &expr_ptr) {
       expr_ptr = std::move(binary_expr->left_expr);
       return true;
     }
+    if (is_int_literal(lhs, 0) && !is_int_literal(rhs, 0)) {
+      replace_with_int(expr_ptr, 0);
+      return true;
+    }
     return false;
   }
   case TokenType::MODULO: {
@@ -200,6 +209,10 @@ bool ConstantFolder::fold_algebraic(std::unique_ptr<Expr> &expr_ptr) {
     }
     if (is_int_literal(rhs, 0)) {
       expr_ptr = std::move(binary_expr->left_expr);
+      return true;
+    }
+    if (is_int_literal(lhs, -1) || is_int_literal(rhs, -1)) {
+      replace_with_int(expr_ptr, -1);
       return true;
     }
     return false;
@@ -224,6 +237,11 @@ bool ConstantFolder::fold_algebraic(std::unique_ptr<Expr> &expr_ptr) {
       expr_ptr = std::move(binary_expr->left_expr);
       return true;
     }
+    if (is_int_literal(lhs, 0) || is_int_literal(rhs, 0)) {
+      replace_with_int(expr_ptr, 0);
+      return true;
+    }
+
     return false;
   }
   case TokenType::LEFT_SHIFT: {
@@ -334,6 +352,28 @@ bool ConstantFolder::fold_conditional(std::unique_ptr<Expr> &expr_ptr) {
   } else {
     expr_ptr = std::move(conditional->false_expr);
   }
+
+  return true;
+}
+
+bool ConstantFolder::fold_sizeof(std::unique_ptr<Expr> &expr_ptr) {
+  if (expr_ptr->expr_type() != ExprType::SIZEOF) {
+    return false;
+  }
+
+  auto *sizeof_expr = static_cast<SizeofExpr *>(expr_ptr.get());
+
+  Type *type = nullptr;
+
+  if (sizeof_expr->parsed_type.has_value()) {
+    // sizeof(type)
+    type = expr_ptr->type;
+  } else {
+    // sizeof(expression)
+    type = sizeof_expr->expr->type;
+  }
+
+  replace_with_int(expr_ptr, static_cast<int64_t>(sizeof_type(type)));
 
   return true;
 }
@@ -561,7 +601,7 @@ bool ConstantFolder::optimize_expr(std::unique_ptr<Expr> &expr_ptr) {
   // FOLDING Routines
 
   switch (expr_ptr->expr_type()) {
-  case ExprType::BINARY:
+  case ExprType::BINARY: {
     if (fold_binary_constants(expr_ptr)) {
       return true;
     }
@@ -569,16 +609,25 @@ bool ConstantFolder::optimize_expr(std::unique_ptr<Expr> &expr_ptr) {
       return true;
     }
     break;
-  case ExprType::UNARY:
+  }
+  case ExprType::UNARY: {
     if (fold_unary(expr_ptr)) {
       return true;
     }
     break;
-  case ExprType::CONDITIONAL:
+  }
+  case ExprType::CONDITIONAL: {
     if (fold_conditional(expr_ptr)) {
       return true;
     }
     break;
+  }
+  case ExprType::SIZEOF: {
+    if (fold_sizeof(expr_ptr)) {
+      return true;
+    }
+    break;
+  }
   default: {
     break;
   }

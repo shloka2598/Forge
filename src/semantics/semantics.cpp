@@ -1,4 +1,5 @@
 #include "semantics.h"
+
 #include <unordered_set>
 
 void Semantics::error(const Token &token, const std::string &msg) {

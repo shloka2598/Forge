@@ -2,9 +2,9 @@
 
 #include "../ast/program.h"
 #include "../ast/stmts.h"
-#include "../parser/parser.h"
 #include "../types/TypeContext.h"
 #include "./scope.h"
+#include "parser/parser.h"
 
 class Semantics {
 private:
@@ -59,8 +59,6 @@ private:
   Type *lookup_tag_type(Scope &scope, const Token &, const std::string &name, SymbolKind expected_kind);
 
   Type *composite_pointer_type(Type *, Type *);
-
-  size_t sizeof_type(Type *);
 
   std::optional<int64_t> evaluate_constant_expr(const Expr *expr);
 
