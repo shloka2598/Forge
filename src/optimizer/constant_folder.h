@@ -6,9 +6,9 @@ class ConstantFolder {
 private:
   Program &program;
 
-  void optimize_stmt(Stmt *);
-  void optimize_expr(std::unique_ptr<Expr> &);
-  void optimize_array_initializer(ArrayInitializer &);
+  bool optimize_stmt(Stmt *);
+  bool optimize_expr(std::unique_ptr<Expr> &);
+  bool optimize_array_initializer(ArrayInitializer &);
 
   bool fold_binary_constants(std::unique_ptr<Expr> &);
   bool fold_algebraic(std::unique_ptr<Expr> &);
@@ -22,5 +22,5 @@ private:
 public:
   explicit ConstantFolder(Program &_program) : program(_program) {};
 
-  void optimize();
+  bool optimize();
 };

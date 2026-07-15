@@ -338,40 +338,45 @@ bool ConstantFolder::fold_conditional(std::unique_ptr<Expr> &expr_ptr) {
   return true;
 }
 
-void ConstantFolder::optimize_array_initializer(ArrayInitializer &arr_initializer) {
+bool ConstantFolder::optimize_array_initializer(ArrayInitializer &arr_initializer) {
+  bool changed = false;
+
   for (auto &child : arr_initializer.children) {
     if (child.is_leaf) {
-      optimize_expr(child.expr);
+      changed |= optimize_expr(child.expr);
     } else {
-      optimize_array_initializer(child);
+      changed |= optimize_array_initializer(child);
     }
   }
 
-  return;
+  return changed;
 }
 
-void ConstantFolder::optimize_stmt(Stmt *stmt_ptr) {
+bool ConstantFolder::optimize_stmt(Stmt *stmt_ptr) {
   if (!stmt_ptr) {
-    return;
+    return false;
   }
+
+  bool changed = false;
+
   switch (stmt_ptr->stmt_type()) {
   case StmtType::VARIABLE_DECL_STMT: {
     VariableDeclarationStmt &vd_stmt = static_cast<VariableDeclarationStmt &>(*stmt_ptr);
     if (vd_stmt.expr_ptr) {
-      optimize_expr(vd_stmt.expr_ptr);
+      changed |= optimize_expr(vd_stmt.expr_ptr);
     }
     if (vd_stmt.init) {
-      optimize_array_initializer(*vd_stmt.init);
+      changed |= optimize_array_initializer(*vd_stmt.init);
     }
     break;
   }
   case StmtType::GLOBAL_VARIABLE_DECL_STMT: {
     GlobalVariableDeclStmt &glbl_stmt = static_cast<GlobalVariableDeclStmt &>(*stmt_ptr);
     if (glbl_stmt.declaration->initializer) {
-      optimize_expr(glbl_stmt.declaration->initializer);
+      changed |= optimize_expr(glbl_stmt.declaration->initializer);
     }
     if (glbl_stmt.declaration->array_initializer.has_value()) {
-      optimize_array_initializer(*glbl_stmt.declaration->array_initializer);
+      changed |= optimize_array_initializer(*glbl_stmt.declaration->array_initializer);
     }
     break;
   }
@@ -379,7 +384,7 @@ void ConstantFolder::optimize_stmt(Stmt *stmt_ptr) {
     auto &fn = static_cast<FunctionDeclStmt &>(*stmt_ptr);
 
     if (fn.declaration->body) {
-      optimize_stmt(fn.declaration->body.get());
+      changed |= optimize_stmt(fn.declaration->body.get());
     }
 
     break;
@@ -387,86 +392,86 @@ void ConstantFolder::optimize_stmt(Stmt *stmt_ptr) {
   case StmtType::BLOCK_STMT: {
     BlockStmt &block_stmt = static_cast<BlockStmt &>(*stmt_ptr);
     for (auto &stmt : block_stmt.statements) {
-      optimize_stmt(stmt.get());
+      changed |= optimize_stmt(stmt.get());
     }
     break;
   }
   case StmtType::EXPRESSION_STMT: {
     ExpressionStmt &expr_stmt = static_cast<ExpressionStmt &>(*stmt_ptr);
     if (expr_stmt.expr) {
-      optimize_expr(expr_stmt.expr);
+      changed |= optimize_expr(expr_stmt.expr);
     }
     break;
   }
   case StmtType::RETURN_STMT: {
     ReturnStmt &return_stmt = static_cast<ReturnStmt &>(*stmt_ptr);
     if (return_stmt.expr_ptr) {
-      optimize_expr(return_stmt.expr_ptr);
+      changed |= optimize_expr(return_stmt.expr_ptr);
     }
     break;
   }
   case StmtType::IF_STMT: {
     IfStmt &if_stmt = static_cast<IfStmt &>(*stmt_ptr);
     if (if_stmt.condition) {
-      optimize_expr(if_stmt.condition);
+      changed |= optimize_expr(if_stmt.condition);
     }
     if (if_stmt.then_body) {
-      optimize_stmt(if_stmt.then_body.get());
+      changed |= optimize_stmt(if_stmt.then_body.get());
     }
     if (if_stmt.else_body) {
-      optimize_stmt(if_stmt.else_body.get());
+      changed |= optimize_stmt(if_stmt.else_body.get());
     }
     break;
   }
   case StmtType::WHILE_STMT: {
     WhileStmt &while_stmt = static_cast<WhileStmt &>(*stmt_ptr);
     if (while_stmt.condition) {
-      optimize_expr(while_stmt.condition);
+      changed |= optimize_expr(while_stmt.condition);
     }
     if (while_stmt.body) {
-      optimize_stmt(while_stmt.body.get());
+      changed |= optimize_stmt(while_stmt.body.get());
     }
     break;
   }
   case StmtType::DO_WHILE_STMT: {
     DoWhileStmt &do_while_stmt = static_cast<DoWhileStmt &>(*stmt_ptr);
     if (do_while_stmt.condition) {
-      optimize_expr(do_while_stmt.condition);
+      changed |= optimize_expr(do_while_stmt.condition);
     }
     if (do_while_stmt.body) {
-      optimize_stmt(do_while_stmt.body.get());
+      changed |= optimize_stmt(do_while_stmt.body.get());
     }
     break;
   }
   case StmtType::FOR_STMT: {
     ForStmt &for_stmt = static_cast<ForStmt &>(*stmt_ptr);
     if (for_stmt.condition) {
-      optimize_expr(for_stmt.condition);
+      changed |= optimize_expr(for_stmt.condition);
     }
     if (for_stmt.init_stmt) {
-      optimize_stmt(for_stmt.init_stmt.get());
+      changed |= optimize_stmt(for_stmt.init_stmt.get());
     }
     if (for_stmt.update_stmt) {
-      optimize_stmt(for_stmt.update_stmt.get());
+      changed |= optimize_stmt(for_stmt.update_stmt.get());
     }
     if (for_stmt.body) {
-      optimize_stmt(for_stmt.body.get());
+      changed |= optimize_stmt(for_stmt.body.get());
     }
     break;
   }
   case StmtType::SWITCH_STMT: {
     SwitchStmt &switch_stmt = static_cast<SwitchStmt &>(*stmt_ptr);
     if (switch_stmt.condition) {
-      optimize_expr(switch_stmt.condition);
+      changed |= optimize_expr(switch_stmt.condition);
     }
     for (auto &_case : switch_stmt.cases) {
-      optimize_expr(_case.value);
+      changed |= optimize_expr(_case.value);
       if (_case.body) {
-        optimize_stmt(_case.body.get());
+        changed |= optimize_stmt(_case.body.get());
       }
     }
     if (switch_stmt.default_body) {
-      optimize_stmt(switch_stmt.default_body.get());
+      changed |= optimize_stmt(switch_stmt.default_body.get());
     }
     break;
   }
@@ -474,26 +479,29 @@ void ConstantFolder::optimize_stmt(Stmt *stmt_ptr) {
   case StmtType::CONTINUE_STMT:
   case StmtType::EMPTY_STMT:
   default: {
-    return;
+    break;
   }
   }
+
+  return changed;
 }
 
-void ConstantFolder::optimize_expr(std::unique_ptr<Expr> &expr_ptr) {
+bool ConstantFolder::optimize_expr(std::unique_ptr<Expr> &expr_ptr) {
   if (!expr_ptr) {
-    return;
+    return false;
   }
+  bool changed = false;
 
   switch (expr_ptr->expr_type()) {
   case ExprType::BINARY: {
     auto &expr = static_cast<BinaryExpr &>(*expr_ptr);
-    optimize_expr(expr.left_expr);
-    optimize_expr(expr.right_expr);
+    changed |= optimize_expr(expr.left_expr);
+    changed |= optimize_expr(expr.right_expr);
     break;
   }
   case ExprType::UNARY: {
     auto &expr = static_cast<UnaryExpr &>(*expr_ptr);
-    optimize_expr(expr.right_expr);
+    changed |= optimize_expr(expr.right_expr);
     break;
   }
   case ExprType::PRE_INCREMENT:
@@ -501,43 +509,43 @@ void ConstantFolder::optimize_expr(std::unique_ptr<Expr> &expr_ptr) {
   case ExprType::POST_INCREMENT:
   case ExprType::POST_DECREMENT: {
     auto &expr = static_cast<IncrementExpr &>(*expr_ptr);
-    optimize_expr(expr.operand);
+    changed |= optimize_expr(expr.operand);
     break;
   }
   case ExprType::FUNCTION_CALL: {
     auto &expr = static_cast<FunctionCallExpr &>(*expr_ptr);
     for (auto &arg : expr.arguments) {
-      optimize_expr(arg);
+      changed |= optimize_expr(arg);
     }
     break;
   }
   case ExprType::CAST: {
     auto &expr = static_cast<CastExpr &>(*expr_ptr);
-    optimize_expr(expr.expr);
+    changed |= optimize_expr(expr.expr);
     break;
   }
   case ExprType::ARRAY_ACCESS: {
     auto &expr = static_cast<ArrayAccessExpr &>(*expr_ptr);
-    optimize_expr(expr.base_expr);
-    optimize_expr(expr.index_expr);
+    changed |= optimize_expr(expr.base_expr);
+    changed |= optimize_expr(expr.index_expr);
     break;
   }
   case ExprType::ASSIGNMENT: {
     auto &expr = static_cast<AssignmentExpr &>(*expr_ptr);
-    optimize_expr(expr.lhs);
-    optimize_expr(expr.rhs);
+    changed |= optimize_expr(expr.lhs);
+    changed |= optimize_expr(expr.rhs);
     break;
   }
   case ExprType::CONDITIONAL: {
     auto &expr = static_cast<ConditionalExpr &>(*expr_ptr);
-    optimize_expr(expr.condition);
-    optimize_expr(expr.true_expr);
-    optimize_expr(expr.false_expr);
+    changed |= optimize_expr(expr.condition);
+    changed |= optimize_expr(expr.true_expr);
+    changed |= optimize_expr(expr.false_expr);
     break;
   }
   case ExprType::MEMBER_ACCESS: {
     auto &expr = static_cast<MemberAccessExpr &>(*expr_ptr);
-    optimize_expr(expr.base_expr);
+    changed |= optimize_expr(expr.base_expr);
     break;
   }
   case ExprType::INT_LITERAL:
@@ -555,30 +563,36 @@ void ConstantFolder::optimize_expr(std::unique_ptr<Expr> &expr_ptr) {
   switch (expr_ptr->expr_type()) {
   case ExprType::BINARY:
     if (fold_binary_constants(expr_ptr)) {
-      return;
+      return true;
     }
     if (fold_algebraic(expr_ptr)) {
-      return;
+      return true;
     }
     break;
   case ExprType::UNARY:
     if (fold_unary(expr_ptr)) {
-      return;
+      return true;
     }
     break;
   case ExprType::CONDITIONAL:
     if (fold_conditional(expr_ptr)) {
-      return;
+      return true;
     }
     break;
   default: {
     break;
   }
   }
+
+  return changed;
 }
 
-void ConstantFolder::optimize() {
+bool ConstantFolder::optimize() {
+  bool changed = false;
+
   for (std::unique_ptr<Stmt> &stmt : program.statements) {
-    optimize_stmt(stmt.get());
+    changed |= optimize_stmt(stmt.get());
   }
+
+  return changed;
 }
