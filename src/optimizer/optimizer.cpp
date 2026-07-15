@@ -1,7 +1,7 @@
 #include "./optimizer.h"
 
-#include "constant_folder.h"
-#include "dead_code_eliminator.h"
+#include "ast/constant_folder.h"
+#include "ast/dead_code_eliminator.h"
 
 Optimizer::Optimizer(Program &program)
     : program(program) {
