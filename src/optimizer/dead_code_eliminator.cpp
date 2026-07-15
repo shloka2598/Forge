@@ -1,5 +1,15 @@
 #include "dead_code_eliminator.h"
 
+std::unique_ptr<Stmt> DeadCodeEliminator::make_expression_stmt(std::unique_ptr<Expr> expr) {
+  if (!expr) {
+    return nullptr;
+  }
+
+  return std::make_unique<ExpressionStmt>(
+      expr->token,
+      std::move(expr));
+}
+
 bool DeadCodeEliminator::optimize_block_stmt(BlockStmt *block_stmt_ptr) {
   if (!block_stmt_ptr) {
     return false;
@@ -76,7 +86,17 @@ bool DeadCodeEliminator::optimize_stmt(std::unique_ptr<Stmt> &stmt_ptr) {
     if (loop.condition && loop.condition->expr_type() == ExprType::INT_LITERAL) {
       auto *condition = static_cast<IntLetExpr *>(loop.condition.get());
       if (condition->value == 0) {
-        stmt_ptr = std::move(loop.body);
+        auto block = std::make_unique<BlockStmt>();
+
+        if (loop.body) {
+          for (auto &stmt : loop.body->statements) {
+            block->statements.push_back(std::move(stmt));
+          }
+        }
+
+        block->statements.push_back(make_expression_stmt(std::move(loop.condition)));
+
+        stmt_ptr = std::move(block);
         return true;
       }
     }
@@ -100,6 +120,7 @@ bool DeadCodeEliminator::optimize_stmt(std::unique_ptr<Stmt> &stmt_ptr) {
       auto *condition = static_cast<IntLetExpr *>(loop.condition.get());
       if (condition->value == 0) {
         auto block = std::make_unique<BlockStmt>();
+
         if (loop.init_stmt) {
           block->statements.push_back(std::move(loop.init_stmt));
         }
@@ -140,16 +161,31 @@ bool DeadCodeEliminator::optimize_stmt(std::unique_ptr<Stmt> &stmt_ptr) {
     auto *cond = static_cast<IntLetExpr *>(if_stmt.condition.get());
 
     if (cond->value != 0) {
-      stmt_ptr = std::move(if_stmt.then_body);
-      return true;
-    } else {
-      if (if_stmt.else_body) {
-        stmt_ptr = std::move(if_stmt.else_body);
-      } else {
-        stmt_ptr = std::make_unique<EmptyStmt>();
+      auto block = std::make_unique<BlockStmt>();
+      block->statements.push_back(make_expression_stmt(std::move(if_stmt.condition)));
+
+      if (if_stmt.then_body) {
+        for (auto &stmt : if_stmt.then_body->statements) {
+          block->statements.push_back(std::move(stmt));
+        }
       }
+
+      stmt_ptr = std::move(block);
       return true;
     }
+
+    auto block = std::make_unique<BlockStmt>();
+
+    block->statements.push_back(make_expression_stmt(std::move(if_stmt.condition)));
+
+    if (if_stmt.else_body) {
+      for (auto &stmt : if_stmt.else_body->statements) {
+        block->statements.push_back(std::move(stmt));
+      }
+    }
+
+    stmt_ptr = std::move(block);
+    return true;
   }
   default: {
     return changed;
