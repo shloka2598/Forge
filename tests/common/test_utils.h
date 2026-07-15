@@ -12,17 +12,17 @@
 
 struct LexerResult {
   std::vector<Token> tokens;
-  DiagnosticEngine diagnostics;
+  DiagnosticEngine diagnostics{""};
 };
 
 struct ParserResult {
   Program program;
-  DiagnosticEngine diagnostics;
+  DiagnosticEngine diagnostics{""};
 };
 
 struct SemanticResult {
   Program program;
-  DiagnosticEngine diagnostics;
+  DiagnosticEngine diagnostics{""};
   std::unique_ptr<Semantics> semantics;
   bool semantic_error = false;
 };

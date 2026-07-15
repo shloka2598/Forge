@@ -1,6 +1,53 @@
 #include "./DiagnosticEngine.h"
 
-#include <iostream>
+#include <utility>
+
+DiagnosticEngine::DiagnosticEngine(std::string source_) : source(std::move(source_)) {
+  line_offsets.push_back(0);
+
+  for (size_t i = 0; i < source.size(); ++i) {
+    if (source[i] == '\n') {
+      line_offsets.push_back(i + 1);
+    }
+  }
+}
+
+std::string_view DiagnosticEngine::get_line(size_t line) const {
+  if (line == 0 || line > line_offsets.size()) {
+    return {};
+  }
+
+  size_t begin = line_offsets[line - 1];
+
+  size_t end;
+
+  if (line == line_offsets.size()) {
+    end = source.size();
+  } else {
+    end = line_offsets[line] - 1; // skip new line
+  }
+
+  if (end > begin && source[end - 1] == '\r') {
+    --end;
+  }
+
+  return std::string_view(source.data() + begin, end - begin);
+}
+
+static const char *level_to_string(DiagnosticLevel level) {
+  switch (level) {
+  case DiagnosticLevel::Error:
+    return "error";
+
+  case DiagnosticLevel::Warning:
+    return "warning";
+
+  case DiagnosticLevel::Note:
+    return "note";
+  }
+
+  return "unknown";
+}
 
 void DiagnosticEngine::add(const Diagnostic &diagnostic) {
   diagnostics.push_back(diagnostic);
@@ -29,27 +76,28 @@ void DiagnosticEngine::note(std::string msg, size_t line, size_t column, size_t 
 
 void DiagnosticEngine::print(std::ostream &os) const {
   for (const Diagnostic &diagnostic : diagnostics) {
-    switch (diagnostic.level) {
-    case DiagnosticLevel::Error:
-      os << "error";
-      break;
+    os << level_to_string(diagnostic.level) << ": " << diagnostic.message << '\n';
+    os << " --> " << diagnostic.line << ':' << diagnostic.column << '\n';
 
-    case DiagnosticLevel::Warning:
-      os << "warning";
-      break;
+    std::string_view line = get_line(diagnostic.line);
 
-    case DiagnosticLevel::Note:
-      os << "note";
-      break;
+    os << diagnostic.line << " | " << line << '\n';
+    os << std::string(std::to_string(diagnostic.line).size(), ' ') << " | ";
+
+    for (size_t i = 1; i < diagnostic.column; ++i) {
+      os << ' ';
     }
 
-    os << ": " << diagnostic.message << '\n';
-    os << " --> line " << diagnostic.line << ", column " << diagnostic.column << '\n';
+    if (diagnostic.length == 0) {
+      os << '^';
+    } else {
+      os << '^';
 
-    if (diagnostic.length > 0) {
-      os << "     length: " << diagnostic.length << '\n';
+      for (size_t i = 1; i < diagnostic.length; ++i) {
+        os << '~';
+      }
     }
 
-    os << '\n';
+    os << "\n\n";
   }
 }

@@ -38,3 +38,15 @@ inline void show_ast(bool debug, const Program &program) {
 
   count++;
 }
+
+inline void show_parsed_ast(bool debug, const Program &program) {
+  show_ast(debug, program);
+}
+
+inline void show_typed_ast(bool debug, const Program &program) {
+  show_ast(debug, program);
+}
+
+inline void show_optimized_ast(bool debug, const Program &program) {
+  show_ast(debug, program);
+}

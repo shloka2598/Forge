@@ -6,6 +6,7 @@
 
 LexerResult tokenize(std::string_view source) {
   LexerResult result;
+  result.diagnostics = DiagnosticEngine(std::string{source});
 
   Lexer lexer{std::string{source}, result.diagnostics};
 
@@ -16,6 +17,7 @@ LexerResult tokenize(std::string_view source) {
 
 ParserResult parse(std::string_view source) {
   ParserResult result;
+  result.diagnostics = DiagnosticEngine(std::string{source});
 
   Lexer lexer{std::string{source}, result.diagnostics};
   auto tokens = lexer.tokenize();
@@ -104,6 +106,7 @@ ReturnStmt *get_return_stmt(SemanticResult &result) {
 
 SemanticResult analyze(std::string_view source) {
   SemanticResult result;
+  result.diagnostics = DiagnosticEngine(std::string{source});
 
   Lexer lexer{std::string{source}, result.diagnostics};
   auto tokens = lexer.tokenize();
